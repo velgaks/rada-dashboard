@@ -170,17 +170,25 @@
       margin-bottom: 1rem;
     }
 
-    /* ── Chart ── */
+    /* ── Charts ── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    @media (max-width: 800px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
     .chart-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 1.25rem 1.5rem;
-      margin-bottom: 2rem;
     }
     .chart-wrap {
       position: relative;
-      height: 260px;
+      height: 240px;
     }
 
     /* ── Table section ── */
@@ -321,11 +329,19 @@
     </div>
   </div>
 
-  <!-- Chart -->
-  <div class="chart-card">
-    <div class="section-title">Явка по датах (останні 15 засідань)</div>
-    <div class="chart-wrap">
-      <canvas id="attendanceChart"></canvas>
+  <!-- Charts -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="section-title">Явка по датах (останні 15 засідань)</div>
+      <div class="chart-wrap">
+        <canvas id="attendanceChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="section-title">Середні голоси «за» по датах</div>
+      <div class="chart-wrap">
+        <canvas id="forChart"></canvas>
+      </div>
     </div>
   </div>
 
@@ -400,6 +416,16 @@
     });
   }
 
+  function getChartDataFor(rows) {
+    const uniqueDates = getUniqueDates(rows);
+    const last15 = uniqueDates.slice(0, 15).reverse();
+    return last15.map(date => {
+      const filtered = rows.filter(r => r.date_agenda === date);
+      const avg = filtered.reduce((s, r) => s + (+r.for || 0), 0) / filtered.length;
+      return { date, avg };
+    });
+  }
+
   // ── Data loading ──────────────────────────────────────────
   async function loadData() {
     const cachedRows   = sessionStorage.getItem('vr_rows');
@@ -459,8 +485,10 @@
     document.getElementById('m-avg-for').textContent  = metrics.avgFor.toFixed(1) + '%';
   }
 
-  let chartInstance = null;
-  let chartData     = null; // module-scope so highlightChartBar can access it
+  let chartInstance    = null;
+  let chartData        = null;
+  let forChartInstance = null;
+  let forChartData     = null;
   const quorumPlugin = {
     id: 'quorum',
     afterDraw(chart) {
@@ -493,6 +521,75 @@
     });
     ds.borderWidth = chartData.map((_, i) => i === idx ? 2.5 : 1);
     chartInstance.update('none'); // skip animation for instant feedback
+  }
+
+  function highlightForChartBar(date) {
+    if (!forChartInstance || !forChartData) return;
+    const idx = forChartData.findIndex(d => d.date === date);
+    const ds  = forChartInstance.data.datasets[0];
+    ds.backgroundColor = forChartData.map((_, i) =>
+      i === idx ? 'rgba(59,130,246,1)' : 'rgba(59,130,246,0.45)'
+    );
+    ds.borderWidth = forChartData.map((_, i) => i === idx ? 2.5 : 1);
+    forChartInstance.update('none');
+  }
+
+  function renderForChart(data, selectedDate) {
+    forChartData = data;
+    const labels = forChartData.map(d => {
+      const [, m, day] = d.date.split('-');
+      return `${day}.${m}`;
+    });
+    const values = forChartData.map(d => Math.round(d.avg));
+    const idx    = selectedDate ? forChartData.findIndex(d => d.date === selectedDate) : -1;
+    const colors = values.map((_, i) =>
+      i === idx ? 'rgba(59,130,246,1)' : `rgba(59,130,246,${idx === -1 ? '0.7' : '0.45'})`
+    );
+    const borderWidths = values.map((_, i) => i === idx ? 2.5 : 1);
+
+    if (forChartInstance) forChartInstance.destroy();
+
+    const ctx = document.getElementById('forChart').getContext('2d');
+    forChartInstance = new Chart(ctx, {
+      type: 'bar',
+      plugins: [quorumPlugin],
+      data: {
+        labels,
+        datasets: [{
+          label: 'Середні голоси «за»',
+          data: values,
+          backgroundColor: colors,
+          borderColor: '#3b82f6',
+          borderWidth: borderWidths,
+          borderRadius: 4,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (items) => forChartData[items[0].dataIndex].date,
+              label: (item) => ` За: ${item.raw} / 393`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(37,45,61,0.8)' },
+            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 11 } },
+          },
+          y: {
+            min: 0,
+            max: 393,
+            grid: { color: 'rgba(37,45,61,0.8)' },
+            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 11 }, stepSize: 50 },
+          },
+        },
+      },
+    });
   }
 
   function renderChart(data, selectedDate) {
@@ -668,15 +765,17 @@
     // Initial render — pass initialDate so the right bar is highlighted from the start
     renderCards(getMetrics(rows, initialDate));
     renderChart(getChartData(rows), initialDate);
+    renderForChart(getChartDataFor(rows), initialDate);
     renderTable(rows, agendaMap, initialDate);
 
-    // Date change — update URL + re-render + highlight bar
+    // Date change — update URL + re-render + highlight both bars
     select.addEventListener('change', () => {
       const date = select.value;
       history.replaceState(null, '', `?date=${date}`);
       renderCards(getMetrics(rows, date));
       renderTable(rows, agendaMap, date);
       highlightChartBar(date);
+      highlightForChartBar(date);
     });
 
     // Hide overlay
