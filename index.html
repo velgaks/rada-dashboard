@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Верховна Рада IX · Аналіз голосувань</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <style>
+    :root {
+      --bg:      #0e1117;
+      --surface: #161b25;
+      --border:  #252d3d;
+      --text:    #e2e8f0;
+      --muted:   #64748b;
+      --green:   #22c55e;
+      --red:     #ef4444;
+      --accent:  #3b82f6;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── Loading overlay ── */
+    #overlay {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 1.25rem;
+      z-index: 999;
+      transition: opacity .3s;
+    }
+    #overlay.hidden { opacity: 0; pointer-events: none; }
+
+    .spinner {
+      width: 48px; height: 48px;
+      border: 4px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #overlay p { color: var(--muted); font-size: .95rem; }
+
+    /* ── Error banner ── */
+    #error-banner {
+      display: none;
+      background: #2d1515;
+      border: 1px solid var(--red);
+      color: #fca5a5;
+      border-radius: 8px;
+      padding: .9rem 1.2rem;
+      margin: 1.5rem auto;
+      max-width: 860px;
+      font-size: .9rem;
+      line-height: 1.6;
+    }
+    #error-banner.visible { display: block; }
+    #error-banner strong { color: #fecaca; }
+    #error-banner code {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .82rem;
+      background: rgba(0,0,0,.3);
+      padding: .1em .4em;
+      border-radius: 4px;
+    }
+    #retry-btn {
+      display: inline-block;
+      margin-top: .6rem;
+      padding: .35rem .9rem;
+      background: rgba(239,68,68,.2);
+      border: 1px solid var(--red);
+      color: #fca5a5;
+      border-radius: 6px;
+      font-size: .82rem;
+      cursor: pointer;
+    }
+    #retry-btn:hover { background: rgba(239,68,68,.35); }
+
+    /* ── Wrapper ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 1.25rem; }
+
+    /* ── Header ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 1.5rem 0 1.25rem;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .header-title h1 {
+      font-size: 1.45rem;
+      font-weight: 600;
+      letter-spacing: -.01em;
+    }
+    .header-title p {
+      font-size: .8rem;
+      color: var(--muted);
+      margin-top: .3rem;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    .header-filter {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      flex-shrink: 0;
+    }
+    .header-filter label {
+      font-size: .8rem;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      white-space: nowrap;
+    }
+
+    /* ── Metric cards ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.1rem 1.3rem;
+    }
+    .card-label {
+      font-size: .75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: .45rem;
+    }
+    .card-value {
+      font-size: 1.9rem;
+      font-weight: 600;
+      font-family: 'IBM Plex Mono', monospace;
+      line-height: 1;
+    }
+    .card-sub {
+      font-size: .78rem;
+      color: var(--muted);
+      margin-top: .35rem;
+    }
+    .card-value.green { color: var(--green); }
+    .card-value.red   { color: var(--red); }
+
+    /* ── Section titles ── */
+    .section-title {
+      font-size: .85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    /* ── Chart ── */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .chart-wrap {
+      position: relative;
+      height: 260px;
+    }
+
+    /* ── Table section ── */
+    .table-header {
+      margin-bottom: 1rem;
+    }
+
+    select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: .4rem .75rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .85rem;
+      cursor: pointer;
+      outline: none;
+    }
+    select:focus { border-color: var(--accent); }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .875rem;
+      min-width: 720px;
+    }
+    thead { background: #1a2030; }
+    th {
+      padding: .75rem 1rem;
+      text-align: left;
+      font-size: .72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    th:first-child { width: 42px; }
+    td {
+      padding: .7rem 1rem;
+      border-top: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tbody tr {
+      cursor: pointer;
+      transition: background .12s;
+    }
+    tbody tr:hover { background: #1e2535; }
+
+    .td-name {
+      max-width: 340px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text);
+    }
+    .td-name[title] { cursor: pointer; }
+    .td-mono {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .8rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .badge {
+      display: inline-block;
+      padding: .2rem .6rem;
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-green { background: rgba(34,197,94,.15); color: var(--green); }
+    .badge-red   { background: rgba(239,68,68,.15);  color: var(--red); }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .header-title h1 { font-size: 1.15rem; }
+      .card-value { font-size: 1.5rem; }
+      header { flex-direction: column; align-items: flex-start; }
+      .header-filter { width: 100%; }
+      .header-filter select { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="overlay">
+  <div class="spinner"></div>
+  <p>Завантаження даних…</p>
+</div>
+
+<!-- Error banner -->
+<div id="error-banner"></div>
+<div class="container" id="retry-wrap" style="display:none">
+  <button id="retry-btn" onclick="retryInit()">↻ Спробувати знову</button>
+</div>
+
+<div class="container">
+  <!-- Header -->
+  <header>
+    <div class="header-title">
+      <h1>Верховна Рада IX · Аналіз голосувань</h1>
+      <p>Дані: data.rada.gov.ua · оновлено щогодини</p>
+    </div>
+    <div class="header-filter">
+      <label for="date-select">Дата засідання:</label>
+      <select id="date-select"></select>
+    </div>
+  </header>
+
+  <!-- Metric cards -->
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Присутніх</div>
+      <div class="card-value" id="m-presence">—</div>
+      <div class="card-sub">з 393 депутатів</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Прийнято</div>
+      <div class="card-value green" id="m-passed">—</div>
+      <div class="card-sub">рішень за дату</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Провалено</div>
+      <div class="card-value red" id="m-failed">—</div>
+      <div class="card-sub">рішень за дату</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Середній % «за»</div>
+      <div class="card-value" id="m-avg-for">—</div>
+      <div class="card-sub">від присутніх</div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-card">
+    <div class="section-title">Явка по датах (останні 15 засідань)</div>
+    <div class="chart-wrap">
+      <canvas id="attendanceChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-header">
+    <div class="section-title">Голосування</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Назва питання</th>
+          <th>За</th>
+          <th>Проти</th>
+          <th>Утрим</th>
+          <th>Не голос</th>
+          <th>Явка</th>
+          <th>Результат</th>
+        </tr>
+      </thead>
+      <tbody id="vote-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const BASE     = 'https://data.rada.gov.ua/ogd/zal/ppz/skl9';
+  const CSV_URL  = `${BASE}/plenary_result_event-skl9.csv`;
+  const JSON_URL = `${BASE}/plenary_agenda-skl9.json`;
+
+  const QUORUM = 226;
+
+  // ── Helpers ──────────────────────────────────────────────
+  function parseCSV(text) {
+    const lines = text.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    return lines.slice(1).map(line => {
+      const vals = line.split(',');
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = vals[i] !== undefined ? vals[i].trim() : ''; });
+      return obj;
+    }).filter(r => r.date_agenda);
+  }
+
+  function getUniqueDates(rows) {
+    const seen = new Set();
+    rows.forEach(r => seen.add(r.date_agenda));
+    return [...seen].sort((a, b) => b.localeCompare(a)); // descending
+  }
+
+  function getMetrics(rows, date) {
+    const filtered = rows.filter(r => r.date_agenda === date);
+    if (!filtered.length) return null;
+    const presence = Math.max(...filtered.map(r => +r.presence || 0));
+    const passed   = filtered.filter(r => r.voting_result === '1').length;
+    const failed   = filtered.filter(r => r.voting_result === '0').length;
+    const avgFor   = filtered.reduce((acc, r) => {
+      const p = +r.presence;
+      return acc + (p > 0 ? (+r.for / p) * 100 : 0);
+    }, 0) / filtered.length;
+    return { presence, passed, failed, avgFor };
+  }
+
+  function getChartData(rows) {
+    const uniqueDates = getUniqueDates(rows); // descending
+    const last15 = uniqueDates.slice(0, 15).reverse(); // ascending for chart
+    return last15.map(date => {
+      const filtered = rows.filter(r => r.date_agenda === date);
+      const avg = filtered.reduce((s, r) => s + (+r.presence || 0), 0) / filtered.length;
+      return { date, avg };
+    });
+  }
+
+  // ── Data loading ──────────────────────────────────────────
+  async function loadData() {
+    const cachedRows   = sessionStorage.getItem('vr_rows');
+    const cachedAgenda = sessionStorage.getItem('vr_agenda');
+
+    if (cachedRows && cachedAgenda) {
+      return {
+        rows:      JSON.parse(cachedRows),
+        agendaMap: new Map(JSON.parse(cachedAgenda)),
+      };
+    }
+
+    const [csvRes, jsonRes] = await Promise.all([
+      fetch(CSV_URL),
+      fetch(JSON_URL),
+    ]);
+
+    if (!csvRes.ok)  throw new Error(`CSV: ${csvRes.status}`);
+    if (!jsonRes.ok) throw new Error(`JSON: ${jsonRes.status}`);
+
+    const [csvText, agendaArr] = await Promise.all([
+      csvRes.text(),
+      jsonRes.json(),
+    ]);
+
+    const rows = parseCSV(csvText);
+
+    // Build a set of id_questions that actually appear in the CSV
+    const csvIds = new Set(rows.map(r => String(+r.id_question)));
+
+    // Filter agenda to only matching IDs (avoids ~10 MB sessionStorage quota issue)
+    const agendaMap = new Map();
+    agendaArr.forEach(item => {
+      const key = String(+item.id_question);
+      if (csvIds.has(key)) {
+        agendaMap.set(key, item.name_question || '');
+      }
+    });
+
+    try {
+      sessionStorage.setItem('vr_rows',   JSON.stringify(rows));
+      sessionStorage.setItem('vr_agenda', JSON.stringify([...agendaMap]));
+    } catch (e) {
+      // sessionStorage quota exceeded — continue without cache
+      console.warn('sessionStorage quota exceeded, running without cache:', e.message);
+    }
+
+    return { rows, agendaMap };
+  }
+
+  // ── Rendering ─────────────────────────────────────────────
+  function renderCards(metrics) {
+    if (!metrics) return;
+    document.getElementById('m-presence').textContent = `${metrics.presence} / 393`;
+    document.getElementById('m-passed').textContent   = metrics.passed;
+    document.getElementById('m-failed').textContent   = metrics.failed;
+    document.getElementById('m-avg-for').textContent  = metrics.avgFor.toFixed(1) + '%';
+  }
+
+  let chartInstance = null;
+  const quorumPlugin = {
+    id: 'quorum',
+    afterDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      const y = scales.y.getPixelForValue(QUORUM);
+      ctx.save();
+      ctx.beginPath();
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = 'rgba(239,68,68,0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.moveTo(chartArea.left, y);
+      ctx.lineTo(chartArea.right, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // label
+      ctx.fillStyle = 'rgba(239,68,68,0.85)';
+      ctx.font = '11px "IBM Plex Mono", monospace';
+      ctx.fillText('226 (кворум)', chartArea.right - 102, y - 5);
+      ctx.restore();
+    },
+  };
+
+  function renderChart(chartData) {
+    const labels = chartData.map(d => {
+      const [, m, day] = d.date.split('-');
+      return `${day}.${m}`;
+    });
+    const values = chartData.map(d => Math.round(d.avg));
+    const colors = values.map(v => v >= QUORUM ? 'rgba(34,197,94,0.75)' : 'rgba(239,68,68,0.75)');
+    const borderColors = values.map(v => v >= QUORUM ? '#22c55e' : '#ef4444');
+
+    if (chartInstance) chartInstance.destroy();
+
+    const ctx = document.getElementById('attendanceChart').getContext('2d');
+    chartInstance = new Chart(ctx, {
+      type: 'bar',
+      plugins: [quorumPlugin],
+      data: {
+        labels,
+        datasets: [{
+          label: 'Середня явка',
+          data: values,
+          backgroundColor: colors,
+          borderColor: borderColors,
+          borderWidth: 1,
+          borderRadius: 4,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (items) => chartData[items[0].dataIndex].date,
+              label: (item) => ` Явка: ${item.raw} / 393`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(37,45,61,0.8)' },
+            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 11 } },
+          },
+          y: {
+            min: 0,
+            max: 393,
+            grid: { color: 'rgba(37,45,61,0.8)' },
+            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 11 }, stepSize: 50 },
+          },
+        },
+      },
+    });
+  }
+
+  function renderTable(rows, agendaMap, date) {
+    const filtered = rows.filter(r => r.date_agenda === date);
+    const tbody = document.getElementById('vote-tbody');
+    tbody.innerHTML = '';
+
+    filtered.forEach((r, i) => {
+      const name = agendaMap.get(String(+r.id_question)) || '—';
+      const passed = r.voting_result === '1';
+      const tr = document.createElement('tr');
+      tr.title = 'Відкрити результати голосування';
+      tr.addEventListener('click', () => {
+        window.open(
+          `https://w1.c1.rada.gov.ua/pls/radan_gs09/ns_golos?g_id=${r.id_event}`,
+          '_blank'
+        );
+      });
+
+      tr.innerHTML = `
+        <td class="td-mono">${i + 1}</td>
+        <td class="td-name" title="${escapeHtml(name)}">${escapeHtml(name)}</td>
+        <td class="td-mono">${r.for}</td>
+        <td class="td-mono">${r.against}</td>
+        <td class="td-mono">${r.abstain}</td>
+        <td class="td-mono">${r.not_voting}</td>
+        <td class="td-mono">${r.presence}</td>
+        <td>
+          <span class="badge ${passed ? 'badge-green' : 'badge-red'}">
+            ${passed ? 'Прийнято' : 'Провалено'}
+          </span>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    if (!filtered.length) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="8" style="text-align:center;color:var(--muted);padding:2rem">Голосувань не знайдено</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function showError(html) {
+    const el = document.getElementById('error-banner');
+    el.innerHTML = html;
+    el.classList.add('visible');
+    document.getElementById('retry-wrap').style.display = 'block';
+  }
+
+  function hideError() {
+    const el = document.getElementById('error-banner');
+    el.innerHTML = '';
+    el.classList.remove('visible');
+    document.getElementById('retry-wrap').style.display = 'none';
+  }
+
+  function buildErrorMessage(err) {
+    const isFile = location.protocol === 'file:';
+    if (isFile) {
+      return `<strong>Сторінку відкрито через <code>file://</code> — браузер блокує мережеві запити.</strong><br>
+Відкрийте файл через локальний HTTP-сервер:<br>
+<code>python -m http.server 5173</code> → <a href="http://localhost:5173" style="color:#93c5fd">http://localhost:5173</a>`;
+    }
+    if (!navigator.onLine) {
+      return '<strong>Немає з\'єднання з інтернетом.</strong> Перевірте мережу та спробуйте ще раз.';
+    }
+    return `<strong>Помилка завантаження даних.</strong> ${err.message || ''}<br>
+Перевірте з'єднання або спробуйте оновити сторінку.`;
+  }
+
+  // ── Bootstrap ─────────────────────────────────────────────
+  async function init() {
+    hideError();
+    document.getElementById('overlay').style.display = 'flex';
+    document.getElementById('overlay').classList.remove('hidden');
+
+    let rows, agendaMap;
+    try {
+      ({ rows, agendaMap } = await loadData());
+    } catch (err) {
+      console.error(err);
+      showError(buildErrorMessage(err));
+      document.getElementById('overlay').classList.add('hidden');
+      return;
+    }
+
+    // Populate date dropdown
+    const dates = getUniqueDates(rows);
+    const select = document.getElementById('date-select');
+    dates.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d;
+      opt.textContent = d;
+      select.appendChild(opt);
+    });
+
+    // Initial render
+    const initialDate = dates[0];
+    renderCards(getMetrics(rows, initialDate));
+    renderChart(getChartData(rows));
+    renderTable(rows, agendaMap, initialDate);
+
+    // Date change
+    select.addEventListener('change', () => {
+      const date = select.value;
+      renderCards(getMetrics(rows, date));
+      renderTable(rows, agendaMap, date);
+    });
+
+    // Hide overlay
+    const overlay = document.getElementById('overlay');
+    overlay.classList.add('hidden');
+    setTimeout(() => { overlay.style.display = 'none'; }, 350);
+  }
+
+  function retryInit() {
+    sessionStorage.removeItem('vr_rows');
+    sessionStorage.removeItem('vr_agenda');
+    init();
+  }
+
+  init();
+</script>
+</body>
+</html>
