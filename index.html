@@ -460,6 +460,7 @@
   }
 
   let chartInstance = null;
+  let chartData     = null; // module-scope so highlightChartBar can access it
   const quorumPlugin = {
     id: 'quorum',
     afterDraw(chart) {
@@ -482,14 +483,34 @@
     },
   };
 
-  function renderChart(chartData) {
+  function highlightChartBar(date) {
+    if (!chartInstance || !chartData) return;
+    const idx = chartData.findIndex(d => d.date === date);
+    const ds  = chartInstance.data.datasets[0];
+    ds.backgroundColor = chartData.map((d, i) => {
+      const rgb = Math.round(d.avg) >= QUORUM ? '34,197,94' : '239,68,68';
+      return i === idx ? `rgba(${rgb},1)` : `rgba(${rgb},0.45)`;
+    });
+    ds.borderWidth = chartData.map((_, i) => i === idx ? 2.5 : 1);
+    chartInstance.update('none'); // skip animation for instant feedback
+  }
+
+  function renderChart(data, selectedDate) {
+    chartData = data; // store in module scope
     const labels = chartData.map(d => {
       const [, m, day] = d.date.split('-');
       return `${day}.${m}`;
     });
     const values = chartData.map(d => Math.round(d.avg));
-    const colors = values.map(v => v >= QUORUM ? 'rgba(34,197,94,0.75)' : 'rgba(239,68,68,0.75)');
-    const borderColors = values.map(v => v >= QUORUM ? '#22c55e' : '#ef4444');
+    const idx    = selectedDate ? chartData.findIndex(d => d.date === selectedDate) : -1;
+    const colors = values.map((v, i) => {
+      const rgb = v >= QUORUM ? '34,197,94' : '239,68,68';
+      return i === idx ? `rgba(${rgb},1)` : `rgba(${rgb},${idx === -1 ? '0.75' : '0.45'})`;
+    });
+    const borderColors = values.map((v, i) => {
+      return v >= QUORUM ? '#22c55e' : '#ef4444';
+    });
+    const borderWidths = values.map((_, i) => i === idx ? 2.5 : 1);
 
     if (chartInstance) chartInstance.destroy();
 
@@ -504,7 +525,7 @@
           data: values,
           backgroundColor: colors,
           borderColor: borderColors,
-          borderWidth: 1,
+          borderWidth: borderWidths,
           borderRadius: 4,
         }],
       },
@@ -639,17 +660,23 @@
       select.appendChild(opt);
     });
 
-    // Initial render
-    const initialDate = dates[0];
+    // Restore date from URL ?date= param, fall back to latest
+    const urlDate    = new URLSearchParams(location.search).get('date');
+    const initialDate = (urlDate && dates.includes(urlDate)) ? urlDate : dates[0];
+    if (initialDate !== dates[0]) select.value = initialDate;
+
+    // Initial render — pass initialDate so the right bar is highlighted from the start
     renderCards(getMetrics(rows, initialDate));
-    renderChart(getChartData(rows));
+    renderChart(getChartData(rows), initialDate);
     renderTable(rows, agendaMap, initialDate);
 
-    // Date change
+    // Date change — update URL + re-render + highlight bar
     select.addEventListener('change', () => {
       const date = select.value;
+      history.replaceState(null, '', `?date=${date}`);
       renderCards(getMetrics(rows, date));
       renderTable(rows, agendaMap, date);
+      highlightChartBar(date);
     });
 
     // Hide overlay
