@@ -247,7 +247,7 @@
       white-space: nowrap;
     }
 
-    select {
+    select, input[type="date"] {
       background: var(--surface);
       border: 1px solid var(--border);
       color: var(--text);
@@ -258,7 +258,25 @@
       cursor: pointer;
       outline: none;
     }
-    select:focus { border-color: var(--accent); }
+    select:focus, input[type="date"]:focus { border-color: var(--accent); }
+    input[type="date"] { color-scheme: dark; }
+
+    /* ── Preset buttons ── */
+    .preset-btns { display: flex; gap: .35rem; flex-wrap: wrap; }
+    .preset-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 5px;
+      padding: .3rem .65rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .78rem;
+      cursor: pointer;
+      transition: color .12s, border-color .12s;
+      white-space: nowrap;
+    }
+    .preset-btn:hover { color: var(--text); border-color: var(--muted); }
+    .preset-btn.active { color: var(--accent); border-color: var(--accent); }
 
     .table-wrap {
       overflow-x: auto;
@@ -351,7 +369,7 @@
       .card-value { font-size: 1.5rem; }
       header { flex-direction: column; align-items: flex-start; }
       .header-filter { width: 100%; }
-      .header-filter select { flex: 1; }
+      .header-filter input[type="date"] { flex: 1; }
     }
   </style>
 </head>
@@ -378,10 +396,16 @@
       <p style="margin-top:.15rem">Автор: Гацко Валентин · КШЕ</p>
     </div>
     <div class="header-filter">
+      <div class="preset-btns">
+        <button class="preset-btn" data-preset="last">Останнє</button>
+        <button class="preset-btn" data-preset="month">Місяць</button>
+        <button class="preset-btn" data-preset="3months">3 місяці</button>
+        <button class="preset-btn" data-preset="all">Весь час</button>
+      </div>
       <label for="date-from">Від:</label>
-      <select id="date-from"></select>
+      <input type="date" id="date-from" />
       <label for="date-to">До:</label>
-      <select id="date-to"></select>
+      <input type="date" id="date-to" />
     </div>
   </header>
 
@@ -1067,33 +1091,26 @@
       return;
     }
 
-    // Populate date dropdowns (descending)
-    const dates = getUniqueDates(rows);
-    const selFrom = document.getElementById('date-from');
-    const selTo   = document.getElementById('date-to');
-
-    dates.forEach(d => {
-      const optF = document.createElement('option');
-      optF.value = d; optF.textContent = d;
-      selFrom.appendChild(optF);
-
-      const optT = document.createElement('option');
-      optT.value = d; optT.textContent = d;
-      selTo.appendChild(optT);
-    });
+    // Date inputs setup
+    const dates     = getUniqueDates(rows); // descending
+    const maxDate   = dates[0];
+    const minDate   = dates[dates.length - 1];
+    const inputFrom = document.getElementById('date-from');
+    const inputTo   = document.getElementById('date-to');
+    inputFrom.min = inputTo.min = minDate;
+    inputFrom.max = inputTo.max = maxDate;
 
     // Restore from URL ?from= &to=, fall back to latest date for both
     const params      = new URLSearchParams(location.search);
     const urlFrom     = params.get('from');
     const urlTo       = params.get('to');
-    const initialFrom = (urlFrom && dates.includes(urlFrom)) ? urlFrom : dates[0];
-    const initialTo   = (urlTo   && dates.includes(urlTo))   ? urlTo   : dates[0];
-    selFrom.value = initialFrom;
-    selTo.value   = initialTo;
+    const initialFrom = (urlFrom && urlFrom >= minDate && urlFrom <= maxDate) ? urlFrom : maxDate;
+    const initialTo   = (urlTo   && urlTo   >= minDate && urlTo   <= maxDate) ? urlTo   : maxDate;
+    inputFrom.value = initialFrom;
+    inputTo.value   = initialTo;
 
-    // Initial render
+    // Render helper
     function renderAll(dateFrom, dateTo) {
-      // Ensure from <= to
       if (dateFrom > dateTo) { [dateFrom, dateTo] = [dateTo, dateFrom]; }
       history.replaceState(null, '', `?from=${dateFrom}&to=${dateTo}`);
       const metrics = getMetrics(rows, dateFrom, dateTo);
@@ -1114,9 +1131,30 @@
 
     renderAll(initialFrom, initialTo);
 
-    // Date range change
-    selFrom.addEventListener('change', () => renderAll(selFrom.value, selTo.value));
-    selTo.addEventListener('change',   () => renderAll(selFrom.value, selTo.value));
+    // Date input change
+    function clearPreset() {
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    }
+    inputFrom.addEventListener('change', () => { clearPreset(); renderAll(inputFrom.value, inputTo.value); });
+    inputTo.addEventListener('change',   () => { clearPreset(); renderAll(inputFrom.value, inputTo.value); });
+
+    // Preset buttons
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        let from, to = maxDate;
+        switch (btn.dataset.preset) {
+          case 'last':    from = maxDate; break;
+          case 'month': { const d = new Date(maxDate); d.setDate(d.getDate() - 30); from = d.toISOString().slice(0, 10); break; }
+          case '3months': { const d = new Date(maxDate); d.setMonth(d.getMonth() - 3); from = d.toISOString().slice(0, 10); break; }
+          case 'all':     from = minDate; break;
+        }
+        clearPreset();
+        btn.classList.add('active');
+        inputFrom.value = from;
+        inputTo.value   = to;
+        renderAll(from, to);
+      });
+    });
 
     // Bill name search — re-render virtual scroll with filtered subset
     document.getElementById('search-input').addEventListener('input', function () {
