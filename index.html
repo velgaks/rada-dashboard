@@ -426,6 +426,7 @@
       <thead>
         <tr>
           <th>#</th>
+          <th>Дата</th>
           <th>Назва питання</th>
           <th>За</th>
           <th>Проти</th>
@@ -776,6 +777,7 @@
     });
     tr.innerHTML = `
       <td class="td-mono">${i + 1}</td>
+      <td class="td-mono">${r.date_agenda}</td>
       <td class="td-name" title="${escapeHtml(name)}">${escapeHtml(name)}</td>
       <td class="td-mono">${r.for}</td>
       <td class="td-mono">${r.against}</td>
@@ -798,7 +800,7 @@
 
     if (!rows.length) {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td colspan="8" style="text-align:center;color:var(--muted);padding:2rem">Голосувань не знайдено</td>`;
+      tr.innerHTML = `<td colspan="9" style="text-align:center;color:var(--muted);padding:2rem">Голосувань не знайдено</td>`;
       tbody.appendChild(tr);
       return;
     }
@@ -817,7 +819,7 @@
       if (rendered < rows.length) {
         const sentinel = document.createElement('tr');
         sentinel.className = 'tbl-sentinel';
-        sentinel.innerHTML = `<td colspan="8" style="padding:.6rem;text-align:center;color:var(--muted);font-size:.78rem;font-family:'IBM Plex Mono',monospace">↓ ще ${rows.length - rendered}</td>`;
+        sentinel.innerHTML = `<td colspan="9" style="padding:.6rem;text-align:center;color:var(--muted);font-size:.78rem;font-family:'IBM Plex Mono',monospace">↓ ще ${rows.length - rendered}</td>`;
         tbody.appendChild(sentinel);
         tableObserver = new IntersectionObserver(entries => {
           if (entries[0].isIntersecting) {
