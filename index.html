@@ -423,7 +423,7 @@
       <div class="card">
         <div class="card-label">Макс. присутніх</div>
         <div class="card-value" id="m-presence">—</div>
-        <div class="card-sub">з 393 депутатів</div>
+        <div class="card-sub">макс. зареєстрованих за сесію</div>
       </div>
       <div class="card">
         <div class="card-label">Прийнято</div>
@@ -678,7 +678,7 @@
   // ── Rendering ─────────────────────────────────────────────
   function renderCards(metrics) {
     if (!metrics) return;
-    document.getElementById('m-presence').textContent = `${metrics.presence} / 393`;
+    document.getElementById('m-presence').textContent = metrics.presence;
     document.getElementById('m-passed').textContent   = metrics.passed;
     document.getElementById('m-failed').textContent   = metrics.failed;
     document.getElementById('m-avg-for').textContent  = metrics.avgFor.toFixed(1) + '%';
