@@ -415,6 +415,14 @@
     </div>
   </div>
 
+  <!-- Faction breakdown -->
+  <div class="chart-card" style="margin-bottom:2rem">
+    <div class="section-title" id="faction-title">Голосування за фракціями</div>
+    <div style="position:relative;height:300px">
+      <canvas id="factionChart"></canvas>
+    </div>
+  </div>
+
   <!-- Table -->
   <div class="table-toolbar">
     <div class="section-title" style="margin-bottom:0">Голосування</div>
@@ -446,7 +454,19 @@
   const CSV_URL  = `${BASE}/plenary_result_event-skl9.csv`;
   const JSON_URL = `${BASE}/plenary_agenda-skl9.json`;
 
-  const QUORUM = 226;
+  const QUORUM        = 226;
+  const FACTION_URL   = 'faction_summary.json';
+  const FACTION_NAMES = {
+    '0':  'Позафракційні',
+    '1':  'Слуга Народу',
+    '3':  'Батьківщина',
+    '4':  'Европейська Солідарність',
+    '5':  'Голос',
+    '7':  'Відновлення України',
+    '8':  'За Майбутнє',
+    '9':  'Платформа За Життя та Мир',
+    '10': 'Довіра',
+  };
 
   // ── Helpers ──────────────────────────────────────────────
   function parseCSV(text) {
@@ -553,6 +573,33 @@
     }
 
     return { rows, agendaMap };
+  }
+
+  // ── Faction data ──────────────────────────────────────────
+  let factionSummary = null; // { date: { faction_id: { for, against, abstain, not_voting, absent } } }
+
+  async function loadFactionData() {
+    if (factionSummary) return factionSummary;
+    const res = await fetch(FACTION_URL);
+    if (!res.ok) throw new Error(`faction_summary.json: ${res.status}`);
+    factionSummary = await res.json();
+    return factionSummary;
+  }
+
+  function getFactionAggregated(dateFrom, dateTo) {
+    const totals = {};
+    Object.entries(factionSummary).forEach(([date, factions]) => {
+      if (date < dateFrom || date > dateTo) return;
+      Object.entries(factions).forEach(([fid, votes]) => {
+        if (!totals[fid]) totals[fid] = { for: 0, against: 0, abstain: 0, not_voting: 0, absent: 0 };
+        totals[fid].for        += votes.for        || 0;
+        totals[fid].against    += votes.against    || 0;
+        totals[fid].abstain    += votes.abstain    || 0;
+        totals[fid].not_voting += votes.not_voting || 0;
+        totals[fid].absent     += votes.absent     || 0;
+      });
+    });
+    return totals;
   }
 
   // ── Rendering ─────────────────────────────────────────────
@@ -763,6 +810,75 @@
     });
   }
 
+  // ── Faction chart ─────────────────────────────────────────
+  let factionChartInstance = null;
+
+  function renderFactionChart(dateFrom, dateTo) {
+    const aggregated = getFactionAggregated(dateFrom, dateTo);
+
+    // Sort factions by "for" votes descending
+    const sorted = Object.entries(aggregated)
+      .sort((a, b) => b[1].for - a[1].for);
+
+    const labels   = sorted.map(([fid]) => FACTION_NAMES[fid] || `Фракція ${fid}`);
+    const forData  = sorted.map(([, v]) => v.for);
+    const againstData   = sorted.map(([, v]) => v.against);
+    const abstainData   = sorted.map(([, v]) => v.abstain);
+    const notVotingData = sorted.map(([, v]) => v.not_voting);
+    const absentData    = sorted.map(([, v]) => v.absent);
+
+    const isRange = dateFrom !== dateTo;
+    document.getElementById('faction-title').textContent =
+      isRange
+        ? `Голосування за фракціями (${dateFrom} — ${dateTo})`
+        : `Голосування за фракціями (${dateFrom})`;
+
+    if (factionChartInstance) factionChartInstance.destroy();
+
+    const ctx = document.getElementById('factionChart').getContext('2d');
+    factionChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'За',             data: forData,      backgroundColor: 'rgba(34,197,94,0.85)'  },
+          { label: 'Проти',          data: againstData,  backgroundColor: 'rgba(239,68,68,0.85)'  },
+          { label: 'Утримались',     data: abstainData,  backgroundColor: 'rgba(245,158,11,0.85)' },
+          { label: 'Не голосували',  data: notVotingData,backgroundColor: 'rgba(100,116,139,0.7)' },
+          { label: 'Відсутні',       data: absentData,   backgroundColor: 'rgba(30,37,53,0.9)'    },
+        ],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: '#64748b', font: { family: 'IBM Plex Sans', size: 11 }, boxWidth: 12 },
+          },
+          tooltip: {
+            callbacks: {
+              label: (item) => ` ${item.dataset.label}: ${item.raw.toLocaleString('uk')}`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            stacked: true,
+            grid: { color: 'rgba(37,45,61,0.8)' },
+            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 11 } },
+          },
+          y: {
+            stacked: true,
+            grid: { display: false },
+            ticks: { color: '#e2e8f0', font: { family: 'IBM Plex Sans', size: 12 } },
+          },
+        },
+      },
+    });
+  }
+
   // ── Virtual scroll state ──────────────────────────────────
   const BATCH_SIZE = 50;
   let currentFilteredRows = [];
@@ -891,7 +1007,10 @@
 
     let rows, agendaMap;
     try {
-      ({ rows, agendaMap } = await loadData());
+      [{ rows, agendaMap }] = await Promise.all([
+        loadData(),
+        loadFactionData(),
+      ]);
     } catch (err) {
       console.error(err);
       showError(buildErrorMessage(err));
@@ -940,6 +1059,7 @@
       document.getElementById('for-title').textContent = `Середні голоси «за» (${chartLabel})`;
       renderChart(getChartData(rows, dateFrom, dateTo), dateFrom, dateTo);
       renderForChart(getChartDataFor(rows, dateFrom, dateTo), dateFrom, dateTo);
+      renderFactionChart(dateFrom, dateTo);
       renderTable(rows, agendaMap, dateFrom, dateTo);
     }
 
