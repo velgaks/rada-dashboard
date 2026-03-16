@@ -386,13 +386,13 @@
   <!-- Charts -->
   <div class="charts-grid">
     <div class="chart-card">
-      <div class="section-title">Явка по датах (останні 15 засідань)</div>
+      <div class="section-title" id="attendance-title">Явка по датах (останні 15 засідань)</div>
       <div class="chart-wrap">
         <canvas id="attendanceChart"></canvas>
       </div>
     </div>
     <div class="chart-card">
-      <div class="section-title">Середні голоси «за» по датах</div>
+      <div class="section-title" id="for-title">Середні голоси «за» по датах</div>
       <div class="chart-wrap">
         <canvas id="forChart"></canvas>
       </div>
@@ -479,20 +479,26 @@
     return { presence, passed, failed, avgFor };
   }
 
-  function getChartData(rows) {
+  function getChartDates(rows, dateFrom, dateTo) {
     const uniqueDates = getUniqueDates(rows); // descending
-    const last15 = uniqueDates.slice(0, 15).reverse(); // ascending for chart
-    return last15.map(date => {
+    if (dateFrom === dateTo) {
+      // Single date: show last 15 for context
+      return uniqueDates.slice(0, 15).reverse();
+    }
+    // Range: show all dates within the range
+    return uniqueDates.filter(d => d >= dateFrom && d <= dateTo).reverse();
+  }
+
+  function getChartData(rows, dateFrom, dateTo) {
+    return getChartDates(rows, dateFrom, dateTo).map(date => {
       const filtered = rows.filter(r => r.date_agenda === date);
       const avg = filtered.reduce((s, r) => s + (+r.presence || 0), 0) / filtered.length;
       return { date, avg };
     });
   }
 
-  function getChartDataFor(rows) {
-    const uniqueDates = getUniqueDates(rows);
-    const last15 = uniqueDates.slice(0, 15).reverse();
-    return last15.map(date => {
+  function getChartDataFor(rows, dateFrom, dateTo) {
+    return getChartDates(rows, dateFrom, dateTo).map(date => {
       const filtered = rows.filter(r => r.date_agenda === date);
       const avg = filtered.reduce((s, r) => s + (+r.for || 0), 0) / filtered.length;
       return { date, avg };
@@ -925,8 +931,15 @@
       const metrics = getMetrics(rows, dateFrom, dateTo);
       renderCards(metrics);
       renderDonut(metrics ? metrics.passed : 0, metrics ? metrics.failed : 0);
-      renderChart(getChartData(rows), dateFrom, dateTo);
-      renderForChart(getChartDataFor(rows), dateFrom, dateTo);
+      const chartDates = getChartDates(rows, dateFrom, dateTo);
+      const isRange = dateFrom !== dateTo;
+      const chartLabel = isRange
+        ? `${chartDates.length} засідань (${dateFrom} — ${dateTo})`
+        : 'останні 15 засідань';
+      document.getElementById('attendance-title').textContent = `Явка по датах (${chartLabel})`;
+      document.getElementById('for-title').textContent = `Середні голоси «за» (${chartLabel})`;
+      renderChart(getChartData(rows, dateFrom, dateTo), dateFrom, dateTo);
+      renderForChart(getChartDataFor(rows, dateFrom, dateTo), dateFrom, dateTo);
       renderTable(rows, agendaMap, dateFrom, dateTo);
     }
 
