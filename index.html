@@ -454,19 +454,12 @@
   const CSV_URL  = `${BASE}/plenary_result_event-skl9.csv`;
   const JSON_URL = `${BASE}/plenary_agenda-skl9.json`;
 
-  const QUORUM        = 226;
-  const FACTION_URL   = 'faction_summary.json';
-  const FACTION_NAMES = {
-    '0':  'Позафракційні',
-    '1':  'Слуга Народу',
-    '3':  'Батьківщина',
-    '4':  'Европейська Солідарність',
-    '5':  'Голос',
-    '7':  'Відновлення України',
-    '8':  'За Майбутнє',
-    '9':  'Платформа За Життя та Мир',
-    '10': 'Довіра',
-  };
+  const QUORUM          = 226;
+  const FACTION_URL     = 'faction_summary.json';
+  const FACTIONS_DICT_URL = `${BASE}/dict/factions.json`;
+
+  // Populated at load time from the official API dict
+  let FACTION_NAMES = {};
 
   // ── Helpers ──────────────────────────────────────────────
   function parseCSV(text) {
@@ -580,9 +573,25 @@
 
   async function loadFactionData() {
     if (factionSummary) return factionSummary;
-    const res = await fetch(FACTION_URL);
-    if (!res.ok) throw new Error(`faction_summary.json: ${res.status}`);
-    factionSummary = await res.json();
+    const [summaryRes, dictRes] = await Promise.all([
+      fetch(FACTION_URL),
+      fetch(FACTIONS_DICT_URL),
+    ]);
+    if (!summaryRes.ok) throw new Error(`faction_summary.json: ${summaryRes.status}`);
+    factionSummary = await summaryRes.json();
+    if (dictRes.ok) {
+      const dict = await dictRes.json();
+      (dict.faction || []).forEach(f => {
+        const name = f.name
+          .replace(/^Фракція політичної партії\s*/i, '')
+          .replace(/^Депутатська група\s*/i, '')
+          .replace(/\s+у Верховній Раді України\s*$/i, '')
+          .replace(/"/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        FACTION_NAMES[f.id] = name;
+      });
+    }
     return factionSummary;
   }
 
