@@ -118,6 +118,7 @@
       align-items: center;
       gap: .6rem;
       flex-shrink: 0;
+      flex-wrap: wrap;
     }
     .header-filter label {
       font-size: .8rem;
@@ -173,11 +174,14 @@
     /* ── Charts ── */
     .charts-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 200px;
       gap: 1rem;
       margin-bottom: 2rem;
     }
-    @media (max-width: 800px) {
+    @media (max-width: 900px) {
+      .charts-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 600px) {
       .charts-grid { grid-template-columns: 1fr; }
     }
     .chart-card {
@@ -190,10 +194,57 @@
       position: relative;
       height: 240px;
     }
+    .donut-wrap {
+      position: relative;
+      height: 160px;
+    }
+    .donut-legend {
+      display: flex;
+      flex-direction: column;
+      gap: .4rem;
+      margin-top: .85rem;
+    }
+    .donut-legend-item {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .78rem;
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--muted);
+    }
+    .donut-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
 
     /* ── Table section ── */
-    .table-header {
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
       margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .search-input {
+      flex: 1;
+      min-width: 200px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: .4rem .75rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .85rem;
+      outline: none;
+    }
+    .search-input:focus { border-color: var(--accent); }
+    .search-input::placeholder { color: var(--muted); }
+    .search-count {
+      font-size: .78rem;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      white-space: nowrap;
     }
 
     select {
@@ -298,29 +349,32 @@
     <div class="header-title">
       <h1>Верховна Рада IX · Аналіз голосувань</h1>
       <p>Дані: data.rada.gov.ua · оновлено щогодини</p>
+      <p style="margin-top:.15rem">Автор: Гацко Валентин · КШЕ</p>
     </div>
     <div class="header-filter">
-      <label for="date-select">Дата засідання:</label>
-      <select id="date-select"></select>
+      <label for="date-from">Від:</label>
+      <select id="date-from"></select>
+      <label for="date-to">До:</label>
+      <select id="date-to"></select>
     </div>
   </header>
 
   <!-- Metric cards -->
   <div class="cards">
     <div class="card">
-      <div class="card-label">Присутніх</div>
+      <div class="card-label">Макс. присутніх</div>
       <div class="card-value" id="m-presence">—</div>
       <div class="card-sub">з 393 депутатів</div>
     </div>
     <div class="card">
       <div class="card-label">Прийнято</div>
       <div class="card-value green" id="m-passed">—</div>
-      <div class="card-sub">рішень за дату</div>
+      <div class="card-sub">рішень за період</div>
     </div>
     <div class="card">
       <div class="card-label">Провалено</div>
       <div class="card-value red" id="m-failed">—</div>
-      <div class="card-sub">рішень за дату</div>
+      <div class="card-sub">рішень за період</div>
     </div>
     <div class="card">
       <div class="card-label">Середній % «за»</div>
@@ -343,11 +397,29 @@
         <canvas id="forChart"></canvas>
       </div>
     </div>
+    <div class="chart-card">
+      <div class="section-title">Результати</div>
+      <div class="donut-wrap">
+        <canvas id="donutChart"></canvas>
+      </div>
+      <div class="donut-legend">
+        <div class="donut-legend-item">
+          <div class="donut-dot" style="background:var(--green)"></div>
+          <span id="donut-passed-label">Прийнято: —</span>
+        </div>
+        <div class="donut-legend-item">
+          <div class="donut-dot" style="background:var(--red)"></div>
+          <span id="donut-failed-label">Провалено: —</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Table -->
-  <div class="table-header">
-    <div class="section-title">Голосування</div>
+  <div class="table-toolbar">
+    <div class="section-title" style="margin-bottom:0">Голосування</div>
+    <input type="text" id="search-input" class="search-input" placeholder="Пошук за назвою…" />
+    <span class="search-count" id="search-count"></span>
   </div>
   <div class="table-wrap">
     <table>
@@ -393,8 +465,8 @@
     return [...seen].sort((a, b) => b.localeCompare(a)); // descending
   }
 
-  function getMetrics(rows, date) {
-    const filtered = rows.filter(r => r.date_agenda === date);
+  function getMetrics(rows, dateFrom, dateTo) {
+    const filtered = rows.filter(r => r.date_agenda >= dateFrom && r.date_agenda <= dateTo);
     if (!filtered.length) return null;
     const presence = Math.max(...filtered.map(r => +r.presence || 0));
     const passed   = filtered.filter(r => r.voting_result === '1').length;
@@ -489,6 +561,8 @@
   let chartData        = null;
   let forChartInstance = null;
   let forChartData     = null;
+  let donutInstance    = null;
+
   const quorumPlugin = {
     id: 'quorum',
     afterDraw(chart) {
@@ -503,7 +577,6 @@
       ctx.lineTo(chartArea.right, y);
       ctx.stroke();
       ctx.setLineDash([]);
-      // label
       ctx.fillStyle = 'rgba(239,68,68,0.85)';
       ctx.font = '11px "IBM Plex Mono", monospace';
       ctx.fillText('226 (кворум)', chartArea.right - 102, y - 5);
@@ -511,41 +584,72 @@
     },
   };
 
-  function highlightChartBar(date) {
+  function highlightChartBars(dateFrom, dateTo) {
     if (!chartInstance || !chartData) return;
-    const idx = chartData.findIndex(d => d.date === date);
-    const ds  = chartInstance.data.datasets[0];
-    ds.backgroundColor = chartData.map((d, i) => {
+    const ds = chartInstance.data.datasets[0];
+    ds.backgroundColor = chartData.map(d => {
+      const inRange = d.date >= dateFrom && d.date <= dateTo;
       const rgb = Math.round(d.avg) >= QUORUM ? '34,197,94' : '239,68,68';
-      return i === idx ? `rgba(${rgb},1)` : `rgba(${rgb},0.45)`;
+      return inRange ? `rgba(${rgb},1)` : `rgba(${rgb},0.3)`;
     });
-    ds.borderWidth = chartData.map((_, i) => i === idx ? 2.5 : 1);
-    chartInstance.update('none'); // skip animation for instant feedback
+    ds.borderWidth = chartData.map(d => d.date >= dateFrom && d.date <= dateTo ? 2.5 : 1);
+    chartInstance.update('none');
   }
 
-  function highlightForChartBar(date) {
+  function highlightForChartBars(dateFrom, dateTo) {
     if (!forChartInstance || !forChartData) return;
-    const idx = forChartData.findIndex(d => d.date === date);
-    const ds  = forChartInstance.data.datasets[0];
-    ds.backgroundColor = forChartData.map((_, i) =>
-      i === idx ? 'rgba(59,130,246,1)' : 'rgba(59,130,246,0.45)'
-    );
-    ds.borderWidth = forChartData.map((_, i) => i === idx ? 2.5 : 1);
+    const ds = forChartInstance.data.datasets[0];
+    ds.backgroundColor = forChartData.map(d => {
+      const inRange = d.date >= dateFrom && d.date <= dateTo;
+      return inRange ? 'rgba(59,130,246,1)' : 'rgba(59,130,246,0.3)';
+    });
+    ds.borderWidth = forChartData.map(d => d.date >= dateFrom && d.date <= dateTo ? 2.5 : 1);
     forChartInstance.update('none');
   }
 
-  function renderForChart(data, selectedDate) {
+  function renderDonut(passed, failed) {
+    document.getElementById('donut-passed-label').textContent = `Прийнято: ${passed}`;
+    document.getElementById('donut-failed-label').textContent = `Провалено: ${failed}`;
+    if (donutInstance) donutInstance.destroy();
+    const ctx = document.getElementById('donutChart').getContext('2d');
+    donutInstance = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [passed, failed],
+          backgroundColor: ['rgba(34,197,94,0.8)', 'rgba(239,68,68,0.8)'],
+          borderColor: ['#22c55e', '#ef4444'],
+          borderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (item) => ` ${item.dataIndex === 0 ? 'Прийнято' : 'Провалено'}: ${item.raw}`,
+            },
+          },
+        },
+      },
+    });
+  }
+
+  function renderForChart(data, dateFrom, dateTo) {
     forChartData = data;
     const labels = forChartData.map(d => {
       const [, m, day] = d.date.split('-');
       return `${day}.${m}`;
     });
     const values = forChartData.map(d => Math.round(d.avg));
-    const idx    = selectedDate ? forChartData.findIndex(d => d.date === selectedDate) : -1;
-    const colors = values.map((_, i) =>
-      i === idx ? 'rgba(59,130,246,1)' : `rgba(59,130,246,${idx === -1 ? '0.7' : '0.45'})`
-    );
-    const borderWidths = values.map((_, i) => i === idx ? 2.5 : 1);
+    const colors = forChartData.map(d => {
+      const inRange = d.date >= dateFrom && d.date <= dateTo;
+      return inRange ? 'rgba(59,130,246,1)' : 'rgba(59,130,246,0.3)';
+    });
+    const borderWidths = forChartData.map(d => d.date >= dateFrom && d.date <= dateTo ? 2.5 : 1);
 
     if (forChartInstance) forChartInstance.destroy();
 
@@ -592,22 +696,20 @@
     });
   }
 
-  function renderChart(data, selectedDate) {
-    chartData = data; // store in module scope
+  function renderChart(data, dateFrom, dateTo) {
+    chartData = data;
     const labels = chartData.map(d => {
       const [, m, day] = d.date.split('-');
       return `${day}.${m}`;
     });
     const values = chartData.map(d => Math.round(d.avg));
-    const idx    = selectedDate ? chartData.findIndex(d => d.date === selectedDate) : -1;
-    const colors = values.map((v, i) => {
-      const rgb = v >= QUORUM ? '34,197,94' : '239,68,68';
-      return i === idx ? `rgba(${rgb},1)` : `rgba(${rgb},${idx === -1 ? '0.75' : '0.45'})`;
+    const colors = chartData.map(d => {
+      const inRange = d.date >= dateFrom && d.date <= dateTo;
+      const rgb = Math.round(d.avg) >= QUORUM ? '34,197,94' : '239,68,68';
+      return inRange ? `rgba(${rgb},1)` : `rgba(${rgb},0.3)`;
     });
-    const borderColors = values.map((v, i) => {
-      return v >= QUORUM ? '#22c55e' : '#ef4444';
-    });
-    const borderWidths = values.map((_, i) => i === idx ? 2.5 : 1);
+    const borderColors = values.map(v => v >= QUORUM ? '#22c55e' : '#ef4444');
+    const borderWidths = chartData.map(d => d.date >= dateFrom && d.date <= dateTo ? 2.5 : 1);
 
     if (chartInstance) chartInstance.destroy();
 
@@ -654,15 +756,21 @@
     });
   }
 
-  function renderTable(rows, agendaMap, date) {
-    const filtered = rows.filter(r => r.date_agenda === date);
+  function renderTable(rows, agendaMap, dateFrom, dateTo) {
+    const filtered = rows.filter(r => r.date_agenda >= dateFrom && r.date_agenda <= dateTo);
     const tbody = document.getElementById('vote-tbody');
     tbody.innerHTML = '';
+
+    // Reset search
+    const searchInput = document.getElementById('search-input');
+    searchInput.value = '';
+    document.getElementById('search-count').textContent = '';
 
     filtered.forEach((r, i) => {
       const name = agendaMap.get(String(+r.id_question)) || '—';
       const passed = r.voting_result === '1';
       const tr = document.createElement('tr');
+      tr.dataset.name = name.toLowerCase();
       tr.title = 'Відкрити результати голосування';
       tr.addEventListener('click', () => {
         window.open(
@@ -747,35 +855,61 @@
       return;
     }
 
-    // Populate date dropdown
+    // Populate date dropdowns (descending)
     const dates = getUniqueDates(rows);
-    const select = document.getElementById('date-select');
+    const selFrom = document.getElementById('date-from');
+    const selTo   = document.getElementById('date-to');
+
     dates.forEach(d => {
-      const opt = document.createElement('option');
-      opt.value = d;
-      opt.textContent = d;
-      select.appendChild(opt);
+      const optF = document.createElement('option');
+      optF.value = d; optF.textContent = d;
+      selFrom.appendChild(optF);
+
+      const optT = document.createElement('option');
+      optT.value = d; optT.textContent = d;
+      selTo.appendChild(optT);
     });
 
-    // Restore date from URL ?date= param, fall back to latest
-    const urlDate    = new URLSearchParams(location.search).get('date');
-    const initialDate = (urlDate && dates.includes(urlDate)) ? urlDate : dates[0];
-    if (initialDate !== dates[0]) select.value = initialDate;
+    // Restore from URL ?from= &to=, fall back to latest date for both
+    const params      = new URLSearchParams(location.search);
+    const urlFrom     = params.get('from');
+    const urlTo       = params.get('to');
+    const initialFrom = (urlFrom && dates.includes(urlFrom)) ? urlFrom : dates[0];
+    const initialTo   = (urlTo   && dates.includes(urlTo))   ? urlTo   : dates[0];
+    selFrom.value = initialFrom;
+    selTo.value   = initialTo;
 
-    // Initial render — pass initialDate so the right bar is highlighted from the start
-    renderCards(getMetrics(rows, initialDate));
-    renderChart(getChartData(rows), initialDate);
-    renderForChart(getChartDataFor(rows), initialDate);
-    renderTable(rows, agendaMap, initialDate);
+    // Initial render
+    function renderAll(dateFrom, dateTo) {
+      // Ensure from <= to
+      if (dateFrom > dateTo) { [dateFrom, dateTo] = [dateTo, dateFrom]; }
+      history.replaceState(null, '', `?from=${dateFrom}&to=${dateTo}`);
+      const metrics = getMetrics(rows, dateFrom, dateTo);
+      renderCards(metrics);
+      renderDonut(metrics ? metrics.passed : 0, metrics ? metrics.failed : 0);
+      renderChart(getChartData(rows), dateFrom, dateTo);
+      renderForChart(getChartDataFor(rows), dateFrom, dateTo);
+      renderTable(rows, agendaMap, dateFrom, dateTo);
+    }
 
-    // Date change — update URL + re-render + highlight both bars
-    select.addEventListener('change', () => {
-      const date = select.value;
-      history.replaceState(null, '', `?date=${date}`);
-      renderCards(getMetrics(rows, date));
-      renderTable(rows, agendaMap, date);
-      highlightChartBar(date);
-      highlightForChartBar(date);
+    renderAll(initialFrom, initialTo);
+
+    // Date range change
+    selFrom.addEventListener('change', () => renderAll(selFrom.value, selTo.value));
+    selTo.addEventListener('change',   () => renderAll(selFrom.value, selTo.value));
+
+    // Bill name search
+    document.getElementById('search-input').addEventListener('input', function () {
+      const q = this.value.toLowerCase();
+      const trs = document.querySelectorAll('#vote-tbody tr[data-name]');
+      let visible = 0;
+      trs.forEach(tr => {
+        const match = tr.dataset.name.includes(q);
+        tr.style.display = match ? '' : 'none';
+        if (match) visible++;
+      });
+      document.getElementById('search-count').textContent =
+        q ? `${visible} з ${trs.length}` : '';
     });
 
     // Hide overlay
