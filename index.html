@@ -756,51 +756,87 @@
     });
   }
 
-  function renderTable(rows, agendaMap, dateFrom, dateTo) {
-    const filtered = rows.filter(r => r.date_agenda >= dateFrom && r.date_agenda <= dateTo);
+  // ── Virtual scroll state ──────────────────────────────────
+  const BATCH_SIZE = 50;
+  let currentFilteredRows = [];
+  let currentAgendaMap    = null;
+  let tableObserver       = null;
+
+  function makeRow(r, i, agendaMap) {
+    const name   = agendaMap.get(String(+r.id_question)) || '—';
+    const passed = r.voting_result === '1';
+    const tr = document.createElement('tr');
+    tr.dataset.name = name.toLowerCase();
+    tr.title = 'Відкрити результати голосування';
+    tr.addEventListener('click', () => {
+      window.open(
+        `https://w1.c1.rada.gov.ua/pls/radan_gs09/ns_golos?g_id=${r.id_event}`,
+        '_blank'
+      );
+    });
+    tr.innerHTML = `
+      <td class="td-mono">${i + 1}</td>
+      <td class="td-name" title="${escapeHtml(name)}">${escapeHtml(name)}</td>
+      <td class="td-mono">${r.for}</td>
+      <td class="td-mono">${r.against}</td>
+      <td class="td-mono">${r.abstain}</td>
+      <td class="td-mono">${r.not_voting}</td>
+      <td class="td-mono">${r.presence}</td>
+      <td>
+        <span class="badge ${passed ? 'badge-green' : 'badge-red'}">
+          ${passed ? 'Прийнято' : 'Провалено'}
+        </span>
+      </td>
+    `;
+    return tr;
+  }
+
+  function renderRows(rows) {
+    if (tableObserver) { tableObserver.disconnect(); tableObserver = null; }
     const tbody = document.getElementById('vote-tbody');
     tbody.innerHTML = '';
 
-    // Reset search
-    const searchInput = document.getElementById('search-input');
-    searchInput.value = '';
-    document.getElementById('search-count').textContent = '';
-
-    filtered.forEach((r, i) => {
-      const name = agendaMap.get(String(+r.id_question)) || '—';
-      const passed = r.voting_result === '1';
-      const tr = document.createElement('tr');
-      tr.dataset.name = name.toLowerCase();
-      tr.title = 'Відкрити результати голосування';
-      tr.addEventListener('click', () => {
-        window.open(
-          `https://w1.c1.rada.gov.ua/pls/radan_gs09/ns_golos?g_id=${r.id_event}`,
-          '_blank'
-        );
-      });
-
-      tr.innerHTML = `
-        <td class="td-mono">${i + 1}</td>
-        <td class="td-name" title="${escapeHtml(name)}">${escapeHtml(name)}</td>
-        <td class="td-mono">${r.for}</td>
-        <td class="td-mono">${r.against}</td>
-        <td class="td-mono">${r.abstain}</td>
-        <td class="td-mono">${r.not_voting}</td>
-        <td class="td-mono">${r.presence}</td>
-        <td>
-          <span class="badge ${passed ? 'badge-green' : 'badge-red'}">
-            ${passed ? 'Прийнято' : 'Провалено'}
-          </span>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    if (!filtered.length) {
+    if (!rows.length) {
       const tr = document.createElement('tr');
       tr.innerHTML = `<td colspan="8" style="text-align:center;color:var(--muted);padding:2rem">Голосувань не знайдено</td>`;
       tbody.appendChild(tr);
+      return;
     }
+
+    let rendered = 0;
+    function renderBatch() {
+      const end = Math.min(rendered + BATCH_SIZE, rows.length);
+      for (let i = rendered; i < end; i++) {
+        tbody.appendChild(makeRow(rows[i], i, currentAgendaMap));
+      }
+      rendered = end;
+
+      const oldSentinel = tbody.querySelector('.tbl-sentinel');
+      if (oldSentinel) oldSentinel.remove();
+
+      if (rendered < rows.length) {
+        const sentinel = document.createElement('tr');
+        sentinel.className = 'tbl-sentinel';
+        sentinel.innerHTML = `<td colspan="8" style="padding:.6rem;text-align:center;color:var(--muted);font-size:.78rem;font-family:'IBM Plex Mono',monospace">↓ ще ${rows.length - rendered}</td>`;
+        tbody.appendChild(sentinel);
+        tableObserver = new IntersectionObserver(entries => {
+          if (entries[0].isIntersecting) {
+            tableObserver.disconnect();
+            renderBatch();
+          }
+        }, { rootMargin: '300px' });
+        tableObserver.observe(sentinel);
+      }
+    }
+    renderBatch();
+  }
+
+  function renderTable(rows, agendaMap, dateFrom, dateTo) {
+    currentAgendaMap    = agendaMap;
+    currentFilteredRows = rows.filter(r => r.date_agenda >= dateFrom && r.date_agenda <= dateTo);
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-count').textContent = '';
+    renderRows(currentFilteredRows);
   }
 
   function escapeHtml(str) {
@@ -898,18 +934,18 @@
     selFrom.addEventListener('change', () => renderAll(selFrom.value, selTo.value));
     selTo.addEventListener('change',   () => renderAll(selFrom.value, selTo.value));
 
-    // Bill name search
+    // Bill name search — re-render virtual scroll with filtered subset
     document.getElementById('search-input').addEventListener('input', function () {
-      const q = this.value.toLowerCase();
-      const trs = document.querySelectorAll('#vote-tbody tr[data-name]');
-      let visible = 0;
-      trs.forEach(tr => {
-        const match = tr.dataset.name.includes(q);
-        tr.style.display = match ? '' : 'none';
-        if (match) visible++;
-      });
+      const q = this.value.toLowerCase().trim();
+      const subset = q
+        ? currentFilteredRows.filter(r => {
+            const name = currentAgendaMap.get(String(+r.id_question)) || '';
+            return name.toLowerCase().includes(q);
+          })
+        : currentFilteredRows;
       document.getElementById('search-count').textContent =
-        q ? `${visible} з ${trs.length}` : '';
+        q ? `${subset.length} з ${currentFilteredRows.length}` : '';
+      renderRows(subset);
     });
 
     // Hide overlay
