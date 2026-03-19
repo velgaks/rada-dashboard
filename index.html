@@ -183,6 +183,10 @@
     }
     @media (max-width: 600px) {
       .charts-grid { grid-template-columns: 1fr; }
+      .analytics-grid { grid-template-columns: 1fr !important; }
+    }
+    @media (max-width: 900px) {
+      .analytics-grid { grid-template-columns: 1fr !important; }
     }
     .chart-card {
       background: var(--surface);
@@ -479,6 +483,30 @@
       <div class="section-title" id="faction-title">Голосування за фракціями</div>
       <div style="position:relative;height:300px">
         <canvas id="factionChart"></canvas>
+      </div>
+    </div>
+
+    <!-- C1: Faction "За" rate trend lines -->
+    <div class="chart-card" style="margin-bottom:2rem">
+      <div class="section-title" id="faction-trend-title">% голосів «за» по фракціях</div>
+      <div style="position:relative;height:320px">
+        <canvas id="factionTrendChart"></canvas>
+      </div>
+    </div>
+
+    <!-- C2 + C3 side by side -->
+    <div class="analytics-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem">
+      <div class="chart-card">
+        <div class="section-title" id="quorum-margin-title">% прийнятих рішень по датах</div>
+        <div style="position:relative;height:260px">
+          <canvas id="quorumMarginChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="section-title" id="coalition-title">Внесок фракцій у голоси «за»</div>
+        <div style="position:relative;height:260px">
+          <canvas id="coalitionChart"></canvas>
+        </div>
       </div>
     </div>
 
@@ -952,6 +980,321 @@
     });
   }
 
+  // ── Stable faction color map (by faction ID) ────────────
+  const FACTION_COLOR_MAP = {
+    '1':  '#3b82f6', // Слуга Народу — blue
+    '0':  '#22c55e', // Позафракційні — green
+    '3':  '#ef4444', // ДОВІРА — red
+    '4':  '#f59e0b', // Платформа за життя та мир — amber
+    '5':  '#8b5cf6', // Всеукраїнське об'єднання Батьківщина — purple
+    '7':  '#ec4899', // ГОЛОС — pink
+    '8':  '#06b6d4', // Європейська солідарність — cyan
+    '9':  '#f97316', // Відновлення України — orange
+    '10': '#84cc16', // Партія За майбутнє — lime
+  };
+  const FACTION_FALLBACK_COLOR = '#6366f1';
+  function factionColor(fid) { return FACTION_COLOR_MAP[fid] || FACTION_FALLBACK_COLOR; }
+
+  // ── C1: Faction "За" rate trend lines (top 5 + 3-session rolling avg) ──
+  let factionTrendInstance = null;
+
+  function rollingAvg(arr, window) {
+    return arr.map((val, i) => {
+      if (val === null) return null;
+      let sum = 0, count = 0;
+      for (let j = Math.max(0, i - window + 1); j <= i; j++) {
+        if (arr[j] !== null) { sum += arr[j]; count++; }
+      }
+      return count > 0 ? +(sum / count).toFixed(1) : null;
+    });
+  }
+
+  function renderFactionTrendChart(dateFrom, dateTo) {
+    const dates = Object.keys(factionSummary)
+      .filter(d => d >= dateFrom && d <= dateTo)
+      .sort();
+
+    if (dates.length < 2) {
+      if (factionTrendInstance) factionTrendInstance.destroy();
+      factionTrendInstance = null;
+      return;
+    }
+
+    const factionIds = [...new Set(dates.flatMap(d => Object.keys(factionSummary[d])))];
+
+    // Rank factions by total vote volume, take top 5
+    const factionVolumes = factionIds.map(fid => {
+      let totalAll = 0;
+      dates.forEach(d => {
+        const v = factionSummary[d]?.[fid];
+        if (v) totalAll += v.for + v.against + v.abstain + v.not_voting;
+      });
+      return { fid, totalAll };
+    });
+    factionVolumes.sort((a, b) => b.totalAll - a.totalAll);
+    const topFactions = factionVolumes.slice(0, 5);
+
+    const datasets = topFactions.map(({ fid }) => {
+      const raw = dates.map(d => {
+        const v = factionSummary[d]?.[fid];
+        if (!v) return null;
+        const total = v.for + v.against + v.abstain + v.not_voting;
+        return total > 0 ? +(v.for / total * 100).toFixed(1) : null;
+      });
+      const smoothed = rollingAvg(raw, 3);
+      const color = factionColor(fid);
+      return {
+        label: FACTION_NAMES[fid] || `Фракція ${fid}`,
+        data: smoothed,
+        borderColor: color,
+        backgroundColor: color,
+        fill: false,
+        tension: 0.3,
+        pointRadius: dates.length > 30 ? 0 : 2,
+        pointHoverRadius: 5,
+        borderWidth: 2.5,
+      };
+    });
+
+    const labels = dates.map(d => {
+      const [, m, day] = d.split('-');
+      return `${day}.${m}`;
+    });
+
+    const isRange = dateFrom !== dateTo;
+    document.getElementById('faction-trend-title').textContent =
+      isRange
+        ? `% «за» по фракціях · ковзне середнє 3 засідання (${dateFrom} — ${dateTo})`
+        : `% «за» по фракціях · ковзне середнє 3 засідання`;
+
+    if (factionTrendInstance) factionTrendInstance.destroy();
+    const ctx = document.getElementById('factionTrendChart').getContext('2d');
+    factionTrendInstance = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: '#64748b',
+              font: { family: 'IBM Plex Sans', size: 11 },
+              boxWidth: 12,
+              usePointStyle: true,
+            },
+          },
+          tooltip: {
+            callbacks: {
+              title: (items) => dates[items[0].dataIndex],
+              label: (item) => ` ${item.dataset.label}: ${item.raw}%`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(37,45,61,0.8)' },
+            ticks: {
+              color: '#64748b',
+              font: { family: 'IBM Plex Mono', size: 11 },
+              maxTicksLimit: 20,
+            },
+          },
+          y: {
+            min: 0,
+            max: 100,
+            grid: { color: 'rgba(37,45,61,0.8)' },
+            ticks: {
+              color: '#64748b',
+              font: { family: 'IBM Plex Mono', size: 11 },
+              callback: v => v + '%',
+            },
+          },
+        },
+      },
+    });
+  }
+
+  // ── C2: % bills passed per session ──────────────────────
+  let passRateInstance = null;
+
+  function renderPassRateChart(rows, dateFrom, dateTo) {
+    const chartDates = getChartDates(rows, dateFrom, dateTo);
+    const data = chartDates.map(date => {
+      const filtered = rows.filter(r => r.date_agenda === date);
+      const passed = filtered.filter(r => r.voting_result === '1').length;
+      const total = filtered.length;
+      const pct = total > 0 ? +(passed / total * 100).toFixed(1) : 0;
+      return { date, pct, passed, total };
+    });
+
+    const labels = data.map(d => {
+      const [, m, day] = d.date.split('-');
+      return `${day}.${m}`;
+    });
+    const values = data.map(d => d.pct);
+    const colors = data.map(d => {
+      if (d.pct >= 70) return 'rgba(34,197,94,0.85)';
+      if (d.pct >= 40) return 'rgba(245,158,11,0.85)';
+      return 'rgba(239,68,68,0.85)';
+    });
+    const borderColors = data.map(d => {
+      if (d.pct >= 70) return '#22c55e';
+      if (d.pct >= 40) return '#f59e0b';
+      return '#ef4444';
+    });
+
+    const isRange = dateFrom !== dateTo;
+    document.getElementById('quorum-margin-title').textContent =
+      isRange
+        ? `% прийнятих рішень по датах (${dateFrom} — ${dateTo})`
+        : `% прийнятих рішень по датах (останні 15 засідань)`;
+
+    if (passRateInstance) passRateInstance.destroy();
+    const ctx = document.getElementById('quorumMarginChart').getContext('2d');
+    passRateInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: '% прийнятих',
+          data: values,
+          backgroundColor: colors,
+          borderColor: borderColors,
+          borderWidth: 1.5,
+          borderRadius: 4,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (items) => data[items[0].dataIndex].date,
+              label: (item) => {
+                const d = data[item.dataIndex];
+                return ` Прийнято: ${d.passed} з ${d.total} (${d.pct}%)`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(37,45,61,0.8)' },
+            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 10 } },
+          },
+          y: {
+            min: 0,
+            max: 100,
+            grid: { color: 'rgba(37,45,61,0.8)' },
+            ticks: {
+              color: '#64748b',
+              font: { family: 'IBM Plex Mono', size: 11 },
+              callback: v => v + '%',
+            },
+          },
+        },
+      },
+    });
+  }
+
+  // ── C3: Coalition dependency stacked "За" bar ───────────
+  let coalitionInstance = null;
+
+  function renderCoalitionChart(rows, dateFrom, dateTo) {
+    const chartDates = getChartDates(rows, dateFrom, dateTo);
+
+    // Count votes per date for averaging
+    const votesPerDate = {};
+    rows.forEach(r => {
+      votesPerDate[r.date_agenda] = (votesPerDate[r.date_agenda] || 0) + 1;
+    });
+
+    // Get all faction IDs, sorted by overall "for" contribution descending
+    const factionIds = [...new Set(
+      chartDates.flatMap(d => Object.keys(factionSummary[d] || {}))
+    )];
+    const factionTotals = factionIds.map(fid => {
+      let total = 0;
+      chartDates.forEach(d => { total += (factionSummary[d]?.[fid]?.for || 0); });
+      return { fid, total };
+    });
+    factionTotals.sort((a, b) => b.total - a.total);
+
+    const labels = chartDates.map(d => {
+      const [, m, day] = d.split('-');
+      return `${day}.${m}`;
+    });
+
+    const datasets = factionTotals.map(({ fid }) => ({
+      label: FACTION_NAMES[fid] || `Фракція ${fid}`,
+      data: chartDates.map(d => {
+        const nVotes = votesPerDate[d] || 1;
+        return Math.round((factionSummary[d]?.[fid]?.for || 0) / nVotes);
+      }),
+      backgroundColor: factionColor(fid) + 'cc',
+      borderColor: factionColor(fid),
+      borderWidth: 0.5,
+    }));
+
+    const isRange = dateFrom !== dateTo;
+    document.getElementById('coalition-title').textContent =
+      isRange
+        ? `Внесок фракцій у голоси «за» (${dateFrom} — ${dateTo})`
+        : `Внесок фракцій у голоси «за» (останні 15 засідань)`;
+
+    if (coalitionInstance) coalitionInstance.destroy();
+    const ctx = document.getElementById('coalitionChart').getContext('2d');
+    coalitionInstance = new Chart(ctx, {
+      type: 'bar',
+      plugins: [quorumPlugin],
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: '#64748b',
+              font: { family: 'IBM Plex Sans', size: 10 },
+              boxWidth: 10,
+            },
+          },
+          tooltip: {
+            mode: 'index',
+            callbacks: {
+              title: (items) => chartDates[items[0].dataIndex],
+              label: (item) => ` ${item.dataset.label}: ${item.raw}`,
+              footer: (items) => {
+                const total = items.reduce((s, it) => s + it.raw, 0);
+                return `Всього «за»: ${total} (${total >= QUORUM ? 'кворум є' : 'кворуму немає'})`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            stacked: true,
+            grid: { color: 'rgba(37,45,61,0.8)' },
+            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 10 } },
+          },
+          y: {
+            stacked: true,
+            min: 0,
+            max: 393,
+            grid: { color: 'rgba(37,45,61,0.8)' },
+            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 11 }, stepSize: 50 },
+          },
+        },
+      },
+    });
+  }
+
   // ── Virtual scroll state ──────────────────────────────────
   const BATCH_SIZE = 50;
   let currentFilteredRows = [];
@@ -1126,6 +1469,9 @@
       renderChart(getChartData(rows, dateFrom, dateTo), dateFrom, dateTo);
       renderForChart(getChartDataFor(rows, dateFrom, dateTo), dateFrom, dateTo);
       renderFactionChart(dateFrom, dateTo);
+      renderFactionTrendChart(dateFrom, dateTo);
+      renderPassRateChart(rows, dateFrom, dateTo);
+      renderCoalitionChart(rows, dateFrom, dateTo);
       renderTable(rows, agendaMap, dateFrom, dateTo);
     }
 
@@ -1185,7 +1531,8 @@
       document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
       // Resize charts when returning to the overview tab
       if (btn.dataset.tab === 'charts') {
-        [chartInstance, forChartInstance, donutInstance, factionChartInstance]
+        [chartInstance, forChartInstance, donutInstance, factionChartInstance,
+         factionTrendInstance, passRateInstance, coalitionInstance]
           .forEach(c => c && c.resize());
       }
     });
