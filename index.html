@@ -183,11 +183,6 @@
     }
     @media (max-width: 600px) {
       .charts-grid { grid-template-columns: 1fr; }
-      .analytics-grid { grid-template-columns: 1fr !important; }
-    }
-    @media (max-width: 900px) {
-      .analytics-grid { grid-template-columns: 1fr !important; }
-    }
     .chart-card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -478,13 +473,6 @@
       </div>
     </div>
 
-    <!-- Faction breakdown -->
-    <div class="chart-card" style="margin-bottom:2rem">
-      <div class="section-title" id="faction-title">Голосування за фракціями</div>
-      <div style="position:relative;height:300px">
-        <canvas id="factionChart"></canvas>
-      </div>
-    </div>
 
     <!-- C1: Faction "За" rate trend lines -->
     <div class="chart-card" style="margin-bottom:2rem">
@@ -494,19 +482,19 @@
       </div>
     </div>
 
-    <!-- C2 + C3 side by side -->
-    <div class="analytics-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem">
-      <div class="chart-card">
-        <div class="section-title" id="quorum-margin-title">% прийнятих рішень по датах</div>
-        <div style="position:relative;height:260px">
-          <canvas id="quorumMarginChart"></canvas>
-        </div>
+    <!-- C2: Pass rate -->
+    <div class="chart-card" style="margin-bottom:2rem">
+      <div class="section-title" id="quorum-margin-title">% прийнятих рішень по датах</div>
+      <div style="position:relative;height:240px">
+        <canvas id="quorumMarginChart"></canvas>
       </div>
-      <div class="chart-card">
-        <div class="section-title" id="coalition-title">Внесок фракцій у голоси «за»</div>
-        <div style="position:relative;height:260px">
-          <canvas id="coalitionChart"></canvas>
-        </div>
+    </div>
+
+    <!-- C3: Coalition dependency stacked area -->
+    <div class="chart-card" style="margin-bottom:2rem">
+      <div class="section-title" id="coalition-title">Внесок фракцій у голоси «за»</div>
+      <div style="position:relative;height:340px">
+        <canvas id="coalitionChart"></canvas>
       </div>
     </div>
 
@@ -687,21 +675,6 @@
     return factionSummary;
   }
 
-  function getFactionAggregated(dateFrom, dateTo) {
-    const totals = {};
-    Object.entries(factionSummary).forEach(([date, factions]) => {
-      if (date < dateFrom || date > dateTo) return;
-      Object.entries(factions).forEach(([fid, votes]) => {
-        if (!totals[fid]) totals[fid] = { for: 0, against: 0, abstain: 0, not_voting: 0, absent: 0 };
-        totals[fid].for        += votes.for        || 0;
-        totals[fid].against    += votes.against    || 0;
-        totals[fid].abstain    += votes.abstain    || 0;
-        totals[fid].not_voting += votes.not_voting || 0;
-        totals[fid].absent     += votes.absent     || 0;
-      });
-    });
-    return totals;
-  }
 
   // ── Rendering ─────────────────────────────────────────────
   function renderCards(metrics) {
@@ -911,74 +884,6 @@
     });
   }
 
-  // ── Faction chart ─────────────────────────────────────────
-  let factionChartInstance = null;
-
-  function renderFactionChart(dateFrom, dateTo) {
-    const aggregated = getFactionAggregated(dateFrom, dateTo);
-
-    // Sort factions by "for" votes descending
-    const sorted = Object.entries(aggregated)
-      .sort((a, b) => b[1].for - a[1].for);
-
-    const labels   = sorted.map(([fid]) => FACTION_NAMES[fid] || `Фракція ${fid}`);
-    const forData  = sorted.map(([, v]) => v.for);
-    const againstData   = sorted.map(([, v]) => v.against);
-    const abstainData   = sorted.map(([, v]) => v.abstain);
-    const notVotingData = sorted.map(([, v]) => v.not_voting);
-    const absentData    = sorted.map(([, v]) => v.absent);
-
-    const isRange = dateFrom !== dateTo;
-    document.getElementById('faction-title').textContent =
-      isRange
-        ? `Голосування за фракціями (${dateFrom} — ${dateTo})`
-        : `Голосування за фракціями (${dateFrom})`;
-
-    if (factionChartInstance) factionChartInstance.destroy();
-
-    const ctx = document.getElementById('factionChart').getContext('2d');
-    factionChartInstance = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [
-          { label: 'За',             data: forData,      backgroundColor: 'rgba(34,197,94,0.85)'  },
-          { label: 'Проти',          data: againstData,  backgroundColor: 'rgba(239,68,68,0.85)'  },
-          { label: 'Утримались',     data: abstainData,  backgroundColor: 'rgba(245,158,11,0.85)' },
-          { label: 'Не голосували',  data: notVotingData,backgroundColor: 'rgba(100,116,139,0.7)' },
-          { label: 'Відсутні',       data: absentData,   backgroundColor: 'rgba(30,37,53,0.9)'    },
-        ],
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { color: '#64748b', font: { family: 'IBM Plex Sans', size: 11 }, boxWidth: 12 },
-          },
-          tooltip: {
-            callbacks: {
-              label: (item) => ` ${item.dataset.label}: ${item.raw.toLocaleString('uk')}`,
-            },
-          },
-        },
-        scales: {
-          x: {
-            stacked: true,
-            grid: { color: 'rgba(37,45,61,0.8)' },
-            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 11 } },
-          },
-          y: {
-            stacked: true,
-            grid: { display: false },
-            ticks: { color: '#e2e8f0', font: { family: 'IBM Plex Sans', size: 12 } },
-          },
-        },
-      },
-    });
-  }
 
   // ── Stable faction color map (by faction ID) ────────────
   const FACTION_COLOR_MAP = {
@@ -1202,73 +1107,115 @@
     });
   }
 
-  // ── C3: Coalition dependency stacked "За" bar ───────────
+  // ── C3: Coalition dependency stacked area (monthly) ─────
   let coalitionInstance = null;
 
-  function renderCoalitionChart(rows, dateFrom, dateTo) {
-    const chartDates = getChartDates(rows, dateFrom, dateTo);
+  const MONTH_NAMES_UK = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер',
+                           'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
 
-    // Count votes per date for averaging
+  function renderCoalitionChart(rows, dateFrom, dateTo) {
+    // Group dates into months
+    const datesInRange = Object.keys(factionSummary)
+      .filter(d => d >= dateFrom && d <= dateTo)
+      .sort();
+
+    if (!datesInRange.length) {
+      if (coalitionInstance) coalitionInstance.destroy();
+      coalitionInstance = null;
+      return;
+    }
+
+    // Build monthly buckets: { '2025-12': [dates...], ... }
+    const monthBuckets = {};
+    datesInRange.forEach(d => {
+      const month = d.slice(0, 7); // YYYY-MM
+      if (!monthBuckets[month]) monthBuckets[month] = [];
+      monthBuckets[month].push(d);
+    });
+    const months = Object.keys(monthBuckets).sort();
+
+    // If only 1 month, fall back to daily view within that month
+    const useDaily = months.length <= 1;
+    const buckets = useDaily
+      ? Object.fromEntries(datesInRange.map(d => [d, [d]]))
+      : monthBuckets;
+    const bucketKeys = useDaily ? datesInRange : months;
+
+    // Count votes per date from rows
     const votesPerDate = {};
     rows.forEach(r => {
-      votesPerDate[r.date_agenda] = (votesPerDate[r.date_agenda] || 0) + 1;
+      if (r.date_agenda >= dateFrom && r.date_agenda <= dateTo)
+        votesPerDate[r.date_agenda] = (votesPerDate[r.date_agenda] || 0) + 1;
     });
 
-    // Get all faction IDs, sorted by overall "for" contribution descending
-    const factionIds = [...new Set(
-      chartDates.flatMap(d => Object.keys(factionSummary[d] || {}))
-    )];
+    // Collect all faction IDs, sorted by total "for" descending
+    const factionIds = [...new Set(datesInRange.flatMap(d => Object.keys(factionSummary[d] || {})))];
     const factionTotals = factionIds.map(fid => {
       let total = 0;
-      chartDates.forEach(d => { total += (factionSummary[d]?.[fid]?.for || 0); });
+      datesInRange.forEach(d => { total += (factionSummary[d]?.[fid]?.for || 0); });
       return { fid, total };
     });
     factionTotals.sort((a, b) => b.total - a.total);
 
-    const labels = chartDates.map(d => {
-      const [, m, day] = d.split('-');
-      return `${day}.${m}`;
+    const labels = bucketKeys.map(k => {
+      if (useDaily) {
+        const [, m, day] = k.split('-');
+        return `${day}.${m}`;
+      }
+      const [y, m] = k.split('-');
+      return `${MONTH_NAMES_UK[+m - 1]} '${y.slice(2)}`;
     });
 
     const datasets = factionTotals.map(({ fid }) => ({
       label: FACTION_NAMES[fid] || `Фракція ${fid}`,
-      data: chartDates.map(d => {
-        const nVotes = votesPerDate[d] || 1;
-        return Math.round((factionSummary[d]?.[fid]?.for || 0) / nVotes);
+      data: bucketKeys.map(k => {
+        const dates = buckets[k];
+        let factionFor = 0, totalVotes = 0;
+        dates.forEach(d => {
+          factionFor += (factionSummary[d]?.[fid]?.for || 0);
+          totalVotes += (votesPerDate[d] || 0);
+        });
+        return totalVotes > 0 ? Math.round(factionFor / totalVotes) : 0;
       }),
-      backgroundColor: factionColor(fid) + 'cc',
+      backgroundColor: factionColor(fid) + '88',
       borderColor: factionColor(fid),
-      borderWidth: 0.5,
+      borderWidth: 1.5,
+      fill: true,
+      tension: 0.35,
+      pointRadius: bucketKeys.length > 20 ? 0 : 3,
+      pointHoverRadius: 5,
     }));
 
     const isRange = dateFrom !== dateTo;
+    const aggLabel = useDaily ? '' : ' · помісячно';
     document.getElementById('coalition-title').textContent =
       isRange
-        ? `Внесок фракцій у голоси «за» (${dateFrom} — ${dateTo})`
-        : `Внесок фракцій у голоси «за» (останні 15 засідань)`;
+        ? `Внесок фракцій у голоси «за»${aggLabel} (${dateFrom} — ${dateTo})`
+        : `Внесок фракцій у голоси «за»`;
 
     if (coalitionInstance) coalitionInstance.destroy();
     const ctx = document.getElementById('coalitionChart').getContext('2d');
     coalitionInstance = new Chart(ctx, {
-      type: 'bar',
+      type: 'line',
       plugins: [quorumPlugin],
       data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: {
             position: 'bottom',
             labels: {
               color: '#64748b',
-              font: { family: 'IBM Plex Sans', size: 10 },
-              boxWidth: 10,
+              font: { family: 'IBM Plex Sans', size: 11 },
+              boxWidth: 12,
+              usePointStyle: true,
             },
           },
           tooltip: {
             mode: 'index',
             callbacks: {
-              title: (items) => chartDates[items[0].dataIndex],
               label: (item) => ` ${item.dataset.label}: ${item.raw}`,
               footer: (items) => {
                 const total = items.reduce((s, it) => s + it.raw, 0);
@@ -1279,9 +1226,8 @@
         },
         scales: {
           x: {
-            stacked: true,
             grid: { color: 'rgba(37,45,61,0.8)' },
-            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 10 } },
+            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 11 } },
           },
           y: {
             stacked: true,
@@ -1468,7 +1414,6 @@
       document.getElementById('for-title').textContent = `Середні голоси «за» (${chartLabel})`;
       renderChart(getChartData(rows, dateFrom, dateTo), dateFrom, dateTo);
       renderForChart(getChartDataFor(rows, dateFrom, dateTo), dateFrom, dateTo);
-      renderFactionChart(dateFrom, dateTo);
       renderFactionTrendChart(dateFrom, dateTo);
       renderPassRateChart(rows, dateFrom, dateTo);
       renderCoalitionChart(rows, dateFrom, dateTo);
@@ -1531,7 +1476,7 @@
       document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
       // Resize charts when returning to the overview tab
       if (btn.dataset.tab === 'charts') {
-        [chartInstance, forChartInstance, donutInstance, factionChartInstance,
+        [chartInstance, forChartInstance, donutInstance,
          factionTrendInstance, passRateInstance, coalitionInstance]
           .forEach(c => c && c.resize());
       }
