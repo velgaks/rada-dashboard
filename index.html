@@ -600,16 +600,6 @@
 
   // ── Data loading ──────────────────────────────────────────
   async function loadData() {
-    const cachedRows   = sessionStorage.getItem('vr_rows');
-    const cachedAgenda = sessionStorage.getItem('vr_agenda');
-
-    if (cachedRows && cachedAgenda) {
-      return {
-        rows:      JSON.parse(cachedRows),
-        agendaMap: new Map(JSON.parse(cachedAgenda)),
-      };
-    }
-
     const [csvRes, jsonRes] = await Promise.all([
       fetch(CSV_URL),
       fetch(JSON_URL),
@@ -628,7 +618,7 @@
     // Build a set of id_questions that actually appear in the CSV
     const csvIds = new Set(rows.map(r => String(+r.id_question)));
 
-    // Filter agenda to only matching IDs (avoids ~10 MB sessionStorage quota issue)
+    // Filter agenda to only matching IDs
     const agendaMap = new Map();
     agendaArr.forEach(item => {
       const key = String(+item.id_question);
@@ -636,14 +626,6 @@
         agendaMap.set(key, item.name_question || '');
       }
     });
-
-    try {
-      sessionStorage.setItem('vr_rows',   JSON.stringify(rows));
-      sessionStorage.setItem('vr_agenda', JSON.stringify([...agendaMap]));
-    } catch (e) {
-      // sessionStorage quota exceeded — continue without cache
-      console.warn('sessionStorage quota exceeded, running without cache:', e.message);
-    }
 
     return { rows, agendaMap };
   }
@@ -1484,8 +1466,6 @@
   });
 
   function retryInit() {
-    sessionStorage.removeItem('vr_rows');
-    sessionStorage.removeItem('vr_agenda');
     init();
   }
 
