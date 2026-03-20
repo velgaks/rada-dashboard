@@ -169,7 +169,66 @@
       letter-spacing: .08em;
       color: var(--muted);
       margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
     }
+
+    /* ── Info tooltip ── */
+    .info-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      border: 1.5px solid var(--muted);
+      background: transparent;
+      color: var(--muted);
+      font-size: .65rem;
+      font-weight: 700;
+      font-family: 'IBM Plex Sans', sans-serif;
+      cursor: pointer;
+      position: relative;
+      flex-shrink: 0;
+      transition: color .15s, border-color .15s;
+      line-height: 1;
+    }
+    .info-btn:hover { color: var(--text); border-color: var(--text); }
+    .info-popup {
+      display: none;
+      position: absolute;
+      left: 50%;
+      top: calc(100% + 8px);
+      transform: translateX(-50%);
+      background: #1e2533;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      width: max-content;
+      max-width: 320px;
+      font-size: .78rem;
+      font-weight: 400;
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--text);
+      line-height: 1.45;
+      z-index: 50;
+      box-shadow: 0 4px 20px rgba(0,0,0,.4);
+      white-space: normal;
+    }
+    .info-popup::before {
+      content: '';
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%) rotate(45deg);
+      width: 10px; height: 10px;
+      background: #1e2533;
+      border-left: 1px solid var(--border);
+      border-top: 1px solid var(--border);
+    }
+    .info-btn:focus .info-popup,
+    .info-btn:hover .info-popup { display: block; }
 
     /* ── Charts ── */
     .charts-grid {
@@ -445,19 +504,25 @@
     <!-- Charts -->
     <div class="charts-grid">
       <div class="chart-card">
-        <div class="section-title" id="attendance-title">Явка по датах (останні 15 засідань)</div>
+        <div class="section-title" id="attendance-title"><span class="title-text">Явка по датах (останні 15 засідань)</span>
+          <button class="info-btn" tabindex="0">i<div class="info-popup">Кількість депутатів, що зареєструвались на засіданні (зелений — є кворум ≥226, червоний — немає). Пунктирна лінія — мінімум 226 для кворуму.</div></button>
+        </div>
         <div class="chart-wrap">
           <canvas id="attendanceChart"></canvas>
         </div>
       </div>
       <div class="chart-card">
-        <div class="section-title" id="for-title">Середні голоси «за» по датах</div>
+        <div class="section-title" id="for-title"><span class="title-text">Середні голоси «за» по датах</span>
+          <button class="info-btn" tabindex="0">i<div class="info-popup">Середня кількість голосів «за» на одне голосування за кожне засідання. Пунктирна лінія — 226 (мінімум для прийняття рішення).</div></button>
+        </div>
         <div class="chart-wrap">
           <canvas id="forChart"></canvas>
         </div>
       </div>
       <div class="chart-card">
-        <div class="section-title">Результати</div>
+        <div class="section-title">Результати
+          <button class="info-btn" tabindex="0">i<div class="info-popup">Співвідношення прийнятих (≥226 голосів «за») та провалених рішень за обраний період.</div></button>
+        </div>
         <div class="donut-wrap">
           <canvas id="donutChart"></canvas>
         </div>
@@ -477,7 +542,9 @@
 
     <!-- C1: Faction "За" rate trend lines -->
     <div class="chart-card" style="margin-bottom:2rem">
-      <div class="section-title" id="faction-trend-title">% голосів «за» по фракціях</div>
+      <div class="section-title" id="faction-trend-title"><span class="title-text">% голосів «за» по фракціях</span>
+        <button class="info-btn" tabindex="0">i<div class="info-popup">Частка голосів «за» від загальної кількості голосів фракції (за + проти + утримались + не голосували) за кожне засідання. Показано топ-5 фракцій за обсягом голосувань. Лінія згладжена ковзним середнім за 3 засідання.</div></button>
+      </div>
       <div style="position:relative;height:320px">
         <canvas id="factionTrendChart"></canvas>
       </div>
@@ -485,7 +552,9 @@
 
     <!-- C2: Pass rate -->
     <div class="chart-card" style="margin-bottom:2rem">
-      <div class="section-title" id="quorum-margin-title">% прийнятих рішень по датах</div>
+      <div class="section-title" id="quorum-margin-title"><span class="title-text">% прийнятих рішень по датах</span>
+        <button class="info-btn" tabindex="0">i<div class="info-popup">Відсоток голосувань, що набрали ≥226 голосів «за» (прийняті), від загальної кількості голосувань за кожне засідання. Зелений ≥70%, жовтий 40–70%, червоний &lt;40%.</div></button>
+      </div>
       <div style="position:relative;height:240px">
         <canvas id="quorumMarginChart"></canvas>
       </div>
@@ -493,7 +562,9 @@
 
     <!-- C3: Coalition dependency stacked area -->
     <div class="chart-card" style="margin-bottom:2rem">
-      <div class="section-title" id="coalition-title">Внесок фракцій у голоси «за»</div>
+      <div class="section-title" id="coalition-title"><span class="title-text">Внесок фракцій у голоси «за»</span>
+        <button class="info-btn" tabindex="0">i<div class="info-popup">Середня кількість голосів «за» від кожної фракції на одне голосування, з помісячною агрегацією. Площі складаються — верхня межа показує загальну кількість «за». Пунктирна лінія 226 — кворум.</div></button>
+      </div>
       <div style="position:relative;height:340px">
         <canvas id="coalitionChart"></canvas>
       </div>
@@ -950,7 +1021,7 @@
     });
 
     const isRange = dateFrom !== dateTo;
-    document.getElementById('faction-trend-title').textContent =
+    document.querySelector('#faction-trend-title .title-text').textContent =
       isRange
         ? `% «за» по фракціях · ковзне середнє 3 засідання (${dateFrom} — ${dateTo})`
         : `% «за» по фракціях · ковзне середнє 3 засідання`;
@@ -1035,7 +1106,7 @@
     });
 
     const isRange = dateFrom !== dateTo;
-    document.getElementById('quorum-margin-title').textContent =
+    document.querySelector('#quorum-margin-title .title-text').textContent =
       isRange
         ? `% прийнятих рішень по датах (${dateFrom} — ${dateTo})`
         : `% прийнятих рішень по датах (останні 15 засідань)`;
@@ -1171,7 +1242,7 @@
 
     const isRange = dateFrom !== dateTo;
     const aggLabel = useDaily ? '' : ' · помісячно';
-    document.getElementById('coalition-title').textContent =
+    document.querySelector('#coalition-title .title-text').textContent =
       isRange
         ? `Внесок фракцій у голоси «за»${aggLabel} (${dateFrom} — ${dateTo})`
         : `Внесок фракцій у голоси «за»`;
@@ -1393,8 +1464,8 @@
       const chartLabel = isRange
         ? `${chartDates.length} засідань (${dateFrom} — ${dateTo})`
         : 'останні 15 засідань';
-      document.getElementById('attendance-title').textContent = `Явка по датах (${chartLabel})`;
-      document.getElementById('for-title').textContent = `Середні голоси «за» (${chartLabel})`;
+      document.querySelector('#attendance-title .title-text').textContent = `Явка по датах (${chartLabel})`;
+      document.querySelector('#for-title .title-text').textContent = `Середні голоси «за» (${chartLabel})`;
       renderChart(getChartData(rows, dateFrom, dateTo), dateFrom, dateTo);
       renderForChart(getChartDataFor(rows, dateFrom, dateTo), dateFrom, dateTo);
       renderFactionTrendChart(dateFrom, dateTo);
