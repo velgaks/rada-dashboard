@@ -1,6 +1,60 @@
 # Next Improvements — Верховна Рада Dashboard
 
-Already implemented: bill search, URL persistence, bar highlight, donut chart, date range selector, progressive table rendering, date column in rows, charts responsive to date range.
+Already implemented: bill search, URL persistence, bar highlight, donut chart, date range selector (with presets + native date inputs), progressive table rendering, date column in rows, charts responsive to date range, C1 faction % За trend lines, C2 pass rate bar chart, C3 coalition dependency stacked area (monthly), info popup tooltips on all charts, consistent faction colors across charts.
+
+---
+
+## 📊 Chart Analytics (research-based — see CHART_IDEAS.md)
+
+*Informed by VoxUkraine, Texty.org.ua, CHESNO, Rada4You approaches.*
+*Core insight: raw vote counts per faction are nearly useless — normalize by faction size and show rates, not totals.*
+
+### C1. ✅ DONE — Faction "За" rate trend lines
+Implemented as top-5 factions by vote volume, 3-session rolling average, consistent color map.
+
+---
+
+### C2. ✅ DONE — Pass rate bar chart
+Implemented as % bills passed per session (green ≥70%, yellow 40-70%, red <40%). Modified from original "quorum margin" concept — pass rate is more intuitive and uses per-bill data instead of session averages.
+
+---
+
+### C3. ✅ DONE — Coalition dependency stacked area
+Implemented as stacked **area** chart (not bar) with monthly aggregation. Shows faction "За" contributions with quorum line at 226. Falls back to daily view when only 1 month selected.
+
+---
+
+### C4. Faction participation heatmap
+**What:** Grid — rows = factions, columns = sessions (dates), cell color = % of faction deputies who were present (not absent/missing).
+**Why:** Shows boycotts, low-engagement sessions, and patterns across time at a glance.
+**Data:** `faction_summary.json` has `absent` counts; faction totals from `factions.json` API.
+**Effort:** Medium — needs CSS grid or Chart.js matrix plugin.
+**Reference:** Texty deputy × week attendance heatmaps.
+
+---
+
+### C5. Deputy absentee ranking *(needs new Python script)*
+**What:** Ranked table of deputies by absence rate for selected date range. Columns: name, faction, % absent, sessions missed.
+**Why:** Accountability — who skips work? Classic CHESNO/Texty format.
+**Data:** Pre-process `plenary_vote_results-skl9.tsv` → `deputy_attendance.json`
+**Script:** `build_deputy_attendance.py` (~1 hour effort)
+
+---
+
+### C6. Faction discipline score *(needs new Python script)*
+**What:** Bar chart — for each faction, what % of deputies voted with the faction majority on each bill? Shows which factions are united blocs vs. loose coalitions.
+**Data:** Pre-process TSV → `faction_discipline.json`
+**Script:** `build_faction_discipline.py` (~2 hour effort)
+**Reference:** Rada4You tracks this live — found 19.7% overall against-faction vote rate.
+
+---
+
+### C7. Deputy vote scatter / "real parliamentary map" *(advanced)*
+**What:** 2D scatter plot — each point = 1 deputy, positioned by voting similarity (PCA of vote vectors). Color by faction. Deputies who vote alike cluster together regardless of formal faction.
+**Why:** The most iconic Ukrainian Rada visualization — reveals real coalitions vs. nominal ones.
+**Data:** Full TSV → vote matrix → PCA → coordinate JSON. Needs `scikit-learn`.
+**Script:** `build_deputy_embedding.py`
+**Reference:** Texty "Три етапи Ради" — the most-shared Rada visualization in Ukraine.
 
 ---
 
@@ -24,11 +78,8 @@ const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
 
 ---
 
-### 2. Faction / party breakdown
-**What:** Add a stacked bar or grouped bar chart showing votes broken down by parliamentary faction.
-**Why:** The most analytically valuable view — which factions supported or opposed a bill.
-**How:** The file `plenary_vote_results-skl9.tsv` is already in the project folder — start by reading its columns. It likely contains per-deputy vote results which can be joined to a faction list.
-**Note:** May require a second TSV/JSON fetch for the deputy→faction mapping.
+### 2. ✅ DONE — Faction / party breakdown
+Replaced by C1 (trend lines) and C3 (coalition stacked area). Old raw-count stacked bar removed.
 
 ---
 
@@ -48,10 +99,11 @@ const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
 
 ## 🟡 Medium Impact / Medium Effort
 
-### 5. IndexedDB cache instead of sessionStorage
-**What:** Replace `sessionStorage` with `IndexedDB` for data caching.
-**Why:** `sessionStorage` is cleared on tab close and has a 5 MB limit (already hit once). IndexedDB survives page refresh, has no practical size limit, and allows a `cachedAt` timestamp for auto-invalidation after 1 hour.
+### 5. IndexedDB cache (optional)
+**What:** Add `IndexedDB` caching for data (currently no caching — fresh fetch each load).
+**Why:** Could speed up repeat visits. sessionStorage was removed due to quota issues.
 **How:** Use `idb-keyval` (3 KB CDN). Store `{ rows, agendaMap, cachedAt }`. On load: `if (Date.now() - cachedAt < 3_600_000) return cached`.
+**Priority:** Low — current load time is acceptable without caching.
 
 ---
 
@@ -76,10 +128,8 @@ setInterval(() => {
 
 ---
 
-### 8. "Quick range" preset buttons
-**What:** Buttons like "Цей тиждень", "Цей місяць", "Останні 30 засідань" that set the from/to selects automatically.
-**Why:** The date selects have hundreds of options — jumping to common ranges is tedious.
-**How:** Each button computes `dateFrom`/`dateTo` from the sorted `dates` array, sets both selects, and calls `renderAll()`.
+### 8. ✅ DONE — Quick range preset buttons
+Implemented: Останнє | Місяць | 3 місяці | Весь час.
 
 ---
 
@@ -115,15 +165,22 @@ setInterval(() => {
 
 ## Priority Order (suggested)
 
-| # | Feature | Effort | Impact |
-|---|---------|--------|--------|
-| 1 | Export to CSV | Low | High |
-| 2 | Faction breakdown | High | Very High |
-| 4 | Sort columns | Low | High |
-| 3 | Custom tooltip | Low | Medium |
-| 8 | Quick range presets | Low | Medium |
-| 7 | Trend line overlay | Low | Medium |
-| 5 | IndexedDB cache | Medium | Medium |
-| 6 | Auto-refresh timer | Low | Medium |
-| 9 | Stale-while-revalidate | Medium | Medium |
-| 10 | Dark/light theme | Medium | Low |
+| # | Feature | Status | Effort | Impact |
+|---|---------|--------|--------|--------|
+| C1 | Faction % За trend lines | ✅ Done | — | — |
+| C2 | Pass rate bar chart | ✅ Done | — | — |
+| C3 | Coalition dependency stacked area | ✅ Done | — | — |
+| 2 | Faction breakdown | ✅ Done (via C1+C3) | — | — |
+| 8 | Preset buttons | ✅ Done | — | — |
+| 1 | Export to CSV | Pending | Low | High |
+| 4 | Sort columns | Pending | Low | High |
+| C4 | Faction participation heatmap | Pending | Medium | High |
+| C5 | Deputy absentee ranking (needs Python) | Pending | Medium | High |
+| 3 | Custom tooltip | Pending | Low | Medium |
+| 7 | Trend line overlay | Pending | Low | Medium |
+| C6 | Faction discipline score (needs Python) | Pending | Medium | Medium |
+| 5 | IndexedDB cache | Pending | Medium | Low |
+| 6 | Auto-refresh timer | Pending | Low | Medium |
+| 9 | Stale-while-revalidate | Pending | Medium | Medium |
+| 10 | Dark/light theme | Pending | Medium | Low |
+| C7 | Deputy vote scatter / PCA map | Pending | High | Very High |

@@ -249,6 +249,40 @@
       border-radius: 10px;
       padding: 1.25rem 1.5rem;
     }
+
+    /* ── Brush / zoom overview ── */
+    .brush-outer {
+      position: relative;
+      margin-top: 10px;
+      border-top: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .brush-canvas-wrap {
+      position: relative;
+      height: 72px;
+    }
+    .brush-selected {
+      position: absolute;
+      top: 0; bottom: 0;
+      box-shadow:
+        -3000px 0 0 3000px rgba(14,17,23,0.68),
+         3000px 0 0 3000px rgba(14,17,23,0.68);
+      border-left:  2px solid var(--accent);
+      border-right: 2px solid var(--accent);
+      cursor: grab;
+      z-index: 2;
+      min-width: 8px;
+    }
+    .brush-selected:active { cursor: grabbing; }
+    .brush-handle {
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 12px;
+      cursor: ew-resize;
+      z-index: 3;
+    }
+    .brush-handle.brush-left  { left:  -6px; }
+    .brush-handle.brush-right { right: -6px; }
     .chart-wrap {
       position: relative;
       height: 240px;
@@ -543,10 +577,19 @@
     <!-- C1: Faction "За" rate trend lines -->
     <div class="chart-card" style="margin-bottom:2rem">
       <div class="section-title" id="faction-trend-title"><span class="title-text">% голосів «за» по фракціях</span>
-        <button class="info-btn" tabindex="0">i<div class="info-popup">Частка голосів «за» від загальної кількості голосів фракції (за + проти + утримались + не голосували) за кожне засідання. Показано топ-5 фракцій за обсягом голосувань. Лінія згладжена ковзним середнім за 3 засідання.</div></button>
+        <button class="info-btn" tabindex="0">i<div class="info-popup">Частка голосів «за» від загальної кількості голосів фракції (за + проти + утримались + не голосували) за кожне засідання. Показано топ-5 фракцій за обсягом голосувань. Лінія згладжена ковзним середнім за 3 засідання. Використовуйте мініграфік знизу для вибору діапазону.</div></button>
       </div>
       <div style="position:relative;height:320px">
         <canvas id="factionTrendChart"></canvas>
+      </div>
+      <div class="brush-outer" id="ftBrushWrap">
+        <div class="brush-canvas-wrap">
+          <canvas id="factionTrendOverview"></canvas>
+        </div>
+        <div class="brush-selected" id="ftBrushSel">
+          <div class="brush-handle brush-left"  id="ftBrushHL"></div>
+          <div class="brush-handle brush-right" id="ftBrushHR"></div>
+        </div>
       </div>
     </div>
 
@@ -563,10 +606,19 @@
     <!-- C3: Coalition dependency stacked area -->
     <div class="chart-card" style="margin-bottom:2rem">
       <div class="section-title" id="coalition-title"><span class="title-text">Внесок фракцій у голоси «за»</span>
-        <button class="info-btn" tabindex="0">i<div class="info-popup">Середня кількість голосів «за» від кожної фракції на одне голосування, з помісячною агрегацією. Площі складаються — верхня межа показує загальну кількість «за». Пунктирна лінія 226 — кворум.</div></button>
+        <button class="info-btn" tabindex="0">i<div class="info-popup">Середня кількість голосів «за» від кожної фракції на одне голосування, з помісячною агрегацією. Площі складаються — верхня межа показує загальну кількість «за». Пунктирна лінія 226 — кворум. Використовуйте мініграфік знизу для вибору діапазону.</div></button>
       </div>
       <div style="position:relative;height:340px">
         <canvas id="coalitionChart"></canvas>
+      </div>
+      <div class="brush-outer" id="coalBrushWrap">
+        <div class="brush-canvas-wrap">
+          <canvas id="coalitionOverview"></canvas>
+        </div>
+        <div class="brush-selected" id="coalBrushSel">
+          <div class="brush-handle brush-left"  id="coalBrushHL"></div>
+          <div class="brush-handle brush-right" id="coalBrushHR"></div>
+        </div>
       </div>
     </div>
 
@@ -956,6 +1008,11 @@
 
   // ── C1: Faction "За" rate trend lines (top 5 + 3-session rolling avg) ──
   let factionTrendInstance = null;
+  let factionTrendOverviewInstance = null;
+  // All-time cached faction rankings (set once in initBrushCharts)
+  let _allFtTopFactions = null;  // top-5 faction IDs by all-time vote volume
+  let _allCoalFactions  = null;  // all faction IDs by all-time "for" total
+  let _allFactionDates  = null;  // sorted date strings from factionSummary
 
   function rollingAvg(arr, window) {
     return arr.map((val, i) => {
@@ -966,6 +1023,190 @@
       }
       return count > 0 ? +(sum / count).toFixed(1) : null;
     });
+  }
+
+  // ── Brush / zoom helper ───────────────────────────────────
+  function initBrush(wrapId, selId, hlId, hrId, onChange) {
+    const wrap = document.getElementById(wrapId);
+    const sel  = document.getElementById(selId);
+    const hl   = document.getElementById(hlId);
+    const hr   = document.getElementById(hrId);
+    let ps = 0, pe = 1;
+
+    function apply() {
+      sel.style.left  = (ps * 100).toFixed(3) + '%';
+      sel.style.right = ((1 - pe) * 100).toFixed(3) + '%';
+      onChange(ps, pe);
+    }
+
+    function makeDrag(el, onDrag) {
+      el.addEventListener('mousedown', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const x0 = e.clientX, ps0 = ps, pe0 = pe;
+        const move = e2 => {
+          const ww = wrap.getBoundingClientRect().width;
+          const dx = (e2.clientX - x0) / ww;
+          onDrag(dx, ps0, pe0);
+          apply();
+        };
+        const up = () => {
+          document.removeEventListener('mousemove', move);
+          document.removeEventListener('mouseup', up);
+        };
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', up);
+      });
+    }
+
+    makeDrag(hl,  (dx, ps0)      => { ps = Math.max(0,    Math.min(pe - 0.04, ps0 + dx)); });
+    makeDrag(hr,  (dx, _,   pe0) => { pe = Math.min(1,    Math.max(ps + 0.04, pe0 + dx)); });
+    makeDrag(sel, (dx, ps0, pe0) => {
+      const w = pe0 - ps0;
+      ps = Math.max(0, Math.min(1 - w, ps0 + dx));
+      pe = ps + w;
+    });
+
+    return { set: (s, e) => { ps = s; pe = e; apply(); } };
+  }
+
+  // ── Overview (mini) charts ────────────────────────────────
+  function renderFactionTrendOverview(allDates) {
+    const datasets = _allFtTopFactions.map(fid => {
+      const raw = allDates.map(d => {
+        const v = factionSummary[d]?.[fid];
+        if (!v) return null;
+        const total = v.for + v.against + v.abstain + v.not_voting;
+        return total > 0 ? +(v.for / total * 100).toFixed(1) : null;
+      });
+      const color = factionColor(fid);
+      return {
+        data: raw,
+        borderColor: color,
+        borderWidth: 1.5,
+        fill: false,
+        tension: 0.3,
+        pointRadius: 0,
+      };
+    });
+
+    if (factionTrendOverviewInstance) factionTrendOverviewInstance.destroy();
+    const ctx = document.getElementById('factionTrendOverview').getContext('2d');
+    factionTrendOverviewInstance = new Chart(ctx, {
+      type: 'line',
+      data: { labels: allDates, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: {
+          x: { display: false },
+          y: { display: false, min: 0, max: 100 },
+        },
+      },
+    });
+  }
+
+  function renderCoalitionOverview(rows, allDates) {
+    const monthBuckets = {};
+    allDates.forEach(d => {
+      const m = d.slice(0, 7);
+      if (!monthBuckets[m]) monthBuckets[m] = [];
+      monthBuckets[m].push(d);
+    });
+    const months = Object.keys(monthBuckets).sort();
+
+    const votesPerDate = {};
+    rows.forEach(r => { votesPerDate[r.date_agenda] = (votesPerDate[r.date_agenda] || 0) + 1; });
+
+    const datasets = _allCoalFactions.map(fid => ({
+      data: months.map(m => {
+        const dates = monthBuckets[m];
+        let fFor = 0, totalVotes = 0;
+        dates.forEach(d => {
+          fFor       += (factionSummary[d]?.[fid]?.for || 0);
+          totalVotes += (votesPerDate[d] || 0);
+        });
+        return totalVotes > 0 ? Math.round(fFor / totalVotes) : 0;
+      }),
+      backgroundColor: factionColor(fid) + '88',
+      borderColor: factionColor(fid),
+      borderWidth: 1,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+    }));
+
+    if (coalitionOverviewInstance) coalitionOverviewInstance.destroy();
+    const ctx = document.getElementById('coalitionOverview').getContext('2d');
+    coalitionOverviewInstance = new Chart(ctx, {
+      type: 'line',
+      data: { labels: months, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: {
+          x: { display: false },
+          y: { display: false, stacked: true, min: 0, max: 393 },
+        },
+      },
+    });
+  }
+
+  // ── One-time brush chart initialiser (called after data load) ──
+  function initBrushCharts(rows) {
+    const allDates = Object.keys(factionSummary).sort();
+    _allFactionDates = allDates;
+
+    // Rank factions over ALL dates for consistent legends
+    const factionIds = [...new Set(allDates.flatMap(d => Object.keys(factionSummary[d])))];
+
+    const volumes = factionIds.map(fid => {
+      let vol = 0;
+      allDates.forEach(d => {
+        const v = factionSummary[d]?.[fid];
+        if (v) vol += v.for + v.against + v.abstain + v.not_voting;
+      });
+      return { fid, vol };
+    });
+    volumes.sort((a, b) => b.vol - a.vol);
+    _allFtTopFactions = volumes.slice(0, 5).map(x => x.fid);
+
+    const totals = factionIds.map(fid => ({
+      fid,
+      total: allDates.reduce((s, d) => s + (factionSummary[d]?.[fid]?.for || 0), 0),
+    }));
+    totals.sort((a, b) => b.total - a.total);
+    _allCoalFactions = totals.map(x => x.fid);
+
+    // Render overview (mini) charts first
+    renderFactionTrendOverview(allDates);
+    renderCoalitionOverview(rows, allDates);
+
+    // Default brush: last 3 months
+    const lastDate = allDates[allDates.length - 1];
+    const d3m = new Date(lastDate);
+    d3m.setMonth(d3m.getMonth() - 3);
+    const d3mStr = d3m.toISOString().slice(0, 10);
+    let startIdx = allDates.findIndex(d => d >= d3mStr);
+    if (startIdx < 0) startIdx = 0;
+    const pStart = startIdx / Math.max(1, allDates.length - 1);
+
+    function brushToDateRange(ps, pe) {
+      const n = allDates.length - 1;
+      return [allDates[Math.round(ps * n)], allDates[Math.round(pe * n)]];
+    }
+
+    const ftBrush = initBrush('ftBrushWrap', 'ftBrushSel', 'ftBrushHL', 'ftBrushHR',
+      (ps, pe) => { const [s, e] = brushToDateRange(ps, pe); renderFactionTrendChart(s, e); });
+    ftBrush.set(pStart, 1.0);
+
+    const coalBrush = initBrush('coalBrushWrap', 'coalBrushSel', 'coalBrushHL', 'coalBrushHR',
+      (ps, pe) => { const [s, e] = brushToDateRange(ps, pe); renderCoalitionChart(rows, s, e); });
+    coalBrush.set(pStart, 1.0);
   }
 
   function renderFactionTrendChart(dateFrom, dateTo) {
@@ -979,19 +1220,8 @@
       return;
     }
 
-    const factionIds = [...new Set(dates.flatMap(d => Object.keys(factionSummary[d])))];
-
-    // Rank factions by total vote volume, take top 5
-    const factionVolumes = factionIds.map(fid => {
-      let totalAll = 0;
-      dates.forEach(d => {
-        const v = factionSummary[d]?.[fid];
-        if (v) totalAll += v.for + v.against + v.abstain + v.not_voting;
-      });
-      return { fid, totalAll };
-    });
-    factionVolumes.sort((a, b) => b.totalAll - a.totalAll);
-    const topFactions = factionVolumes.slice(0, 5);
+    // Use all-time top-5 ranking so legend stays consistent across brush positions
+    const topFactions = (_allFtTopFactions || []).map(fid => ({ fid }));
 
     const datasets = topFactions.map(({ fid }) => {
       const raw = dates.map(d => {
@@ -1020,11 +1250,8 @@
       return `${day}.${m}`;
     });
 
-    const isRange = dateFrom !== dateTo;
     document.querySelector('#faction-trend-title .title-text').textContent =
-      isRange
-        ? `% «за» по фракціях · ковзне середнє 3 засідання (${dateFrom} — ${dateTo})`
-        : `% «за» по фракціях · ковзне середнє 3 засідання`;
+      `% «за» по фракціях · ковзне середнє 3 засідання (${dateFrom} — ${dateTo})`;
 
     if (factionTrendInstance) factionTrendInstance.destroy();
     const ctx = document.getElementById('factionTrendChart').getContext('2d');
@@ -1163,6 +1390,7 @@
 
   // ── C3: Coalition dependency stacked area (monthly) ─────
   let coalitionInstance = null;
+  let coalitionOverviewInstance = null;
 
   const MONTH_NAMES_UK = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер',
                            'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
@@ -1202,14 +1430,9 @@
         votesPerDate[r.date_agenda] = (votesPerDate[r.date_agenda] || 0) + 1;
     });
 
-    // Collect all faction IDs, sorted by total "for" descending
-    const factionIds = [...new Set(datesInRange.flatMap(d => Object.keys(factionSummary[d] || {})))];
-    const factionTotals = factionIds.map(fid => {
-      let total = 0;
-      datesInRange.forEach(d => { total += (factionSummary[d]?.[fid]?.for || 0); });
-      return { fid, total };
-    });
-    factionTotals.sort((a, b) => b.total - a.total);
+    // Use all-time faction ordering so legend stays consistent across brush positions
+    const orderedFactions = _allCoalFactions ||
+      [...new Set(datesInRange.flatMap(d => Object.keys(factionSummary[d] || {})))];
 
     const labels = bucketKeys.map(k => {
       if (useDaily) {
@@ -1220,7 +1443,7 @@
       return `${MONTH_NAMES_UK[+m - 1]} '${y.slice(2)}`;
     });
 
-    const datasets = factionTotals.map(({ fid }) => ({
+    const datasets = orderedFactions.map(fid => ({
       label: FACTION_NAMES[fid] || `Фракція ${fid}`,
       data: bucketKeys.map(k => {
         const dates = buckets[k];
@@ -1240,12 +1463,9 @@
       pointHoverRadius: 5,
     }));
 
-    const isRange = dateFrom !== dateTo;
     const aggLabel = useDaily ? '' : ' · помісячно';
     document.querySelector('#coalition-title .title-text').textContent =
-      isRange
-        ? `Внесок фракцій у голоси «за»${aggLabel} (${dateFrom} — ${dateTo})`
-        : `Внесок фракцій у голоси «за»`;
+      `Внесок фракцій у голоси «за»${aggLabel} (${dateFrom} — ${dateTo})`;
 
     if (coalitionInstance) coalitionInstance.destroy();
     const ctx = document.getElementById('coalitionChart').getContext('2d');
@@ -1468,13 +1688,13 @@
       document.querySelector('#for-title .title-text').textContent = `Середні голоси «за» (${chartLabel})`;
       renderChart(getChartData(rows, dateFrom, dateTo), dateFrom, dateTo);
       renderForChart(getChartDataFor(rows, dateFrom, dateTo), dateFrom, dateTo);
-      renderFactionTrendChart(dateFrom, dateTo);
       renderPassRateChart(rows, dateFrom, dateTo);
-      renderCoalitionChart(rows, dateFrom, dateTo);
       renderTable(rows, agendaMap, dateFrom, dateTo);
+      // C1 and C3 are brush-controlled — not driven by date filter
     }
 
     renderAll(initialFrom, initialTo);
+    initBrushCharts(rows); // one-time setup for C1 and C3
 
     // Date input change
     function clearPreset() {
@@ -1531,7 +1751,8 @@
       // Resize charts when returning to the overview tab
       if (btn.dataset.tab === 'charts') {
         [chartInstance, forChartInstance, donutInstance,
-         factionTrendInstance, passRateInstance, coalitionInstance]
+         factionTrendInstance, factionTrendOverviewInstance,
+         passRateInstance, coalitionInstance, coalitionOverviewInstance]
           .forEach(c => c && c.resize());
       }
     });
