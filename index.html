@@ -233,7 +233,7 @@
     /* ── Charts ── */
     .charts-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr 200px;
+      grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);
       gap: 1rem;
       margin-bottom: 2rem;
     }
@@ -287,28 +287,20 @@
       position: relative;
       height: 240px;
     }
-    .donut-wrap {
-      position: relative;
-      height: 160px;
+    /* ── Faction attendance heatmap ── */
+    .faction-heatmap { font-family: 'IBM Plex Mono', monospace; font-size: .72rem; overflow-x: auto; }
+    .heatmap-row { display: flex; align-items: center; gap: 2px; margin-bottom: 2px; }
+    .heatmap-label {
+      width: 76px; min-width: 76px; color: var(--muted); font-size: .68rem;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      text-align: right; padding-right: 6px;
     }
-    .donut-legend {
-      display: flex;
-      flex-direction: column;
-      gap: .4rem;
-      margin-top: .85rem;
-    }
-    .donut-legend-item {
-      display: flex;
-      align-items: center;
-      gap: .5rem;
-      font-size: .78rem;
-      font-family: 'IBM Plex Mono', monospace;
-      color: var(--muted);
-    }
-    .donut-dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
+    .heatmap-cell { width: 14px; height: 18px; border-radius: 2px; flex-shrink: 0; cursor: default; }
+    .heatmap-header { display: flex; align-items: flex-end; gap: 2px; margin-bottom: 4px; padding-left: 82px; }
+    .heatmap-col-label {
+      width: 14px; min-width: 14px; font-size: .6rem; color: var(--muted);
+      writing-mode: vertical-rl; text-orientation: mixed; transform: rotate(180deg);
+      height: 36px; overflow: hidden;
     }
 
     /* ── Table section ── */
@@ -370,6 +362,17 @@
     }
     .preset-btn:hover { color: var(--text); border-color: var(--muted); }
     .preset-btn.active { color: var(--accent); border-color: var(--accent); }
+
+    /* ── За/Проти metric toggle (C1) ── */
+    .metric-toggle { display: flex; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+    .metric-btn {
+      background: none; border: none; color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace; font-size: .72rem;
+      padding: .2rem .55rem; cursor: pointer; transition: color .12s, background .12s;
+    }
+    .metric-btn:hover { color: var(--text); }
+    .metric-btn.active { background: var(--accent); color: #fff; }
+    .metric-btn.active[data-metric="against"] { background: var(--red); }
 
     .table-wrap {
       overflow-x: auto;
@@ -554,30 +557,26 @@
         </div>
       </div>
       <div class="chart-card">
-        <div class="section-title">Результати
-          <button class="info-btn" tabindex="0">i<div class="info-popup">Співвідношення прийнятих (≥226 голосів «за») та провалених рішень за обраний період.</div></button>
+        <div class="section-title">
+          <span class="title-text">Явка по фракціях</span>
+          <button class="info-btn" tabindex="0">i<div class="info-popup">Частка присутніх депутатів фракції на кожному засіданні (присутні = за + проти + утримались + не голосували). Показано останні 15 засідань в діапазоні. Зелений — висока явка, червоний — низька.</div></button>
         </div>
-        <div class="donut-wrap">
-          <canvas id="donutChart"></canvas>
-        </div>
-        <div class="donut-legend">
-          <div class="donut-legend-item">
-            <div class="donut-dot" style="background:var(--green)"></div>
-            <span id="donut-passed-label">Прийнято: —</span>
-          </div>
-          <div class="donut-legend-item">
-            <div class="donut-dot" style="background:var(--red)"></div>
-            <span id="donut-failed-label">Провалено: —</span>
-          </div>
-        </div>
+        <div id="factionHeatmap" class="faction-heatmap"></div>
       </div>
     </div>
 
 
     <!-- C1: Faction "За" rate trend lines -->
     <div class="chart-card" style="margin-bottom:2rem">
-      <div class="section-title" id="faction-trend-title"><span class="title-text">% голосів «за» по фракціях</span>
-        <button class="info-btn" tabindex="0">i<div class="info-popup">Частка голосів «за» від загальної кількості голосів фракції (за + проти + утримались + не голосували) за кожне засідання. Показано топ-5 фракцій за обсягом голосувань. Лінія згладжена ковзним середнім за 3 засідання. Використовуйте мініграфік знизу для вибору діапазону.</div></button>
+      <div class="section-title" id="faction-trend-title">
+        <span class="title-text">% голосів «за» по фракціях</span>
+        <div style="display:flex;align-items:center;gap:.5rem;margin-left:auto">
+          <div class="metric-toggle" id="ftMetricToggle">
+            <button class="metric-btn active" data-metric="for">За</button>
+            <button class="metric-btn" data-metric="against">Проти</button>
+          </div>
+          <button class="info-btn" tabindex="0">i<div class="info-popup">Частка голосів «за» (або «проти») від загальної кількості голосів фракції (за + проти + утримались + не голосували) за кожне засідання. Показано топ-5 фракцій за обсягом голосувань. Лінія згладжена ковзним середнім за 3 засідання. Використовуйте мініграфік знизу для вибору діапазону.</div></button>
+        </div>
       </div>
       <div style="position:relative;height:320px">
         <canvas id="factionTrendChart"></canvas>
@@ -795,7 +794,7 @@
   let chartData        = null;
   let forChartInstance = null;
   let forChartData     = null;
-  let donutInstance    = null;
+  let donutInstance    = null; // kept for tab-resize array compat, no longer used
 
   const quorumPlugin = {
     id: 'quorum',
@@ -841,35 +840,57 @@
     forChartInstance.update('none');
   }
 
-  function renderDonut(passed, failed) {
-    document.getElementById('donut-passed-label').textContent = `Прийнято: ${passed}`;
-    document.getElementById('donut-failed-label').textContent = `Провалено: ${failed}`;
-    if (donutInstance) donutInstance.destroy();
-    const ctx = document.getElementById('donutChart').getContext('2d');
-    donutInstance = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        datasets: [{
-          data: [passed, failed],
-          backgroundColor: ['rgba(34,197,94,0.8)', 'rgba(239,68,68,0.8)'],
-          borderColor: ['#22c55e', '#ef4444'],
-          borderWidth: 2,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '65%',
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: (item) => ` ${item.dataIndex === 0 ? 'Прийнято' : 'Провалено'}: ${item.raw}`,
-            },
-          },
-        },
-      },
-    });
+  // ── Faction attendance heatmap ─────────────────────────────────────────────
+  function renderFactionHeatmap(dateFrom, dateTo) {
+    const container = document.getElementById('factionHeatmap');
+    if (!factionSummary) { container.innerHTML = ''; return; }
+    const allSorted = Object.keys(factionSummary).sort();
+    const dates = dateFrom === dateTo
+      ? allSorted.filter(d => d <= dateTo).slice(-15)
+      : allSorted.filter(d => d >= dateFrom && d <= dateTo).slice(-15);
+    if (!dates.length) {
+      container.innerHTML = '<span style="color:var(--muted);font-size:.8rem">Немає даних</span>';
+      return;
+    }
+    const fids = [...new Set(dates.flatMap(d => Object.keys(factionSummary[d] || {})))]
+      .sort((a, b) => {
+        const vol = fid => dates.reduce((s, d) => {
+          const v = factionSummary[d]?.[fid]; if (!v) return s;
+          return s + v.for + v.against + v.abstain + v.not_voting;
+        }, 0);
+        return vol(b) - vol(a);
+      });
+    function cellColor(rate) {
+      if (rate === null) return 'rgba(37,45,61,0.4)';
+      if (rate >= .90) return '#22c55e';
+      if (rate >= .75) return '#84cc16';
+      if (rate >= .60) return '#eab308';
+      if (rate >= .40) return '#f97316';
+      return '#ef4444';
+    }
+    const header = '<div class="heatmap-header">' +
+      dates.map(d => { const [,m,day]=d.split('-'); return `<div class="heatmap-col-label" title="${d}">${day}.${m}</div>`; }).join('') +
+      '</div>';
+    const rows = fids.map(fid => {
+      const label = (FACTION_NAMES[fid] || `Фр.${fid}`)
+        .replace(/^(Всеукраїнське|Партія|Депутатська)\s+/i, '').slice(0, 11);
+      const cells = dates.map(d => {
+        const v = factionSummary[d]?.[fid];
+        if (!v) return '<div class="heatmap-cell" style="background:rgba(37,45,61,0.3)" title="немає даних"></div>';
+        const present = v.for + v.against + v.abstain + v.not_voting;
+        const total = present + v.absent;
+        const rate = total > 0 ? present / total : null;
+        const pct = rate !== null ? Math.round(rate * 100) : '—';
+        const [,m,day] = d.split('-');
+        const fname = FACTION_NAMES[fid] || `Фракція ${fid}`;
+        const n = _billCountByDate[d] || 1;
+        const avgPresent = Math.round(present / n);
+        const avgTotal   = Math.round(total   / n);
+        return `<div class="heatmap-cell" style="background:${cellColor(rate)}" title="${fname} · ${day}.${m}: ${pct}% (ср. ${avgPresent}/${avgTotal} на голосування)"></div>`;
+      }).join('');
+      return `<div class="heatmap-row"><div class="heatmap-label" title="${FACTION_NAMES[fid]||''}">${label}</div>${cells}</div>`;
+    }).join('');
+    container.innerHTML = header + rows;
   }
 
   function renderForChart(data, dateFrom, dateTo) {
@@ -993,15 +1014,17 @@
 
   // ── Stable faction color map (by faction ID) ────────────
   const FACTION_COLOR_MAP = {
-    '1':  '#3b82f6', // Слуга Народу — blue
-    '0':  '#22c55e', // Позафракційні — green
-    '3':  '#ef4444', // ДОВІРА — red
-    '4':  '#f59e0b', // Платформа за життя та мир — amber
-    '5':  '#8b5cf6', // Всеукраїнське об'єднання Батьківщина — purple
-    '7':  '#ec4899', // ГОЛОС — pink
-    '8':  '#06b6d4', // Європейська солідарність — cyan
-    '9':  '#f97316', // Відновлення України — orange
-    '10': '#84cc16', // Партія За майбутнє — lime
+    '1':  '#00b140', // СЛУГА НАРОДУ — official green
+    '0':  '#94a3b8', // Позафракційні — neutral slate
+    '2':  '#1e3a8a', // ОПОЗИЦІЙНА ПЛАТФОРМА-ЗА ЖИТТЯ — dark navy (ОПЗЖ original)
+    '3':  '#b91c1c', // Батьківщина — deep crimson (Тимошенко)
+    '4':  '#ca8a04', // Євросолідарність — gold (Порошенко logo accent)
+    '5':  '#fbbf24', // ГОЛОС — amber/gold
+    '6':  '#4ade80', // За майбутнє (рання версія) — lime
+    '7':  '#60a5fa', // ДОВІРА — light blue
+    '8':  '#10b981', // Партія За майбутнє — emerald
+    '9':  '#1d4ed8', // Платформа за життя та мир — dark blue (ОПЗЖ successor)
+    '10': '#38bdf8', // Відновлення України — sky blue
   };
   const FACTION_FALLBACK_COLOR = '#6366f1';
   function factionColor(fid) { return FACTION_COLOR_MAP[fid] || FACTION_FALLBACK_COLOR; }
@@ -1013,6 +1036,10 @@
   let _allFtTopFactions = null;  // top-5 faction IDs by all-time vote volume
   let _allCoalFactions  = null;  // all faction IDs by all-time "for" total
   let _allFactionDates  = null;  // sorted date strings from factionSummary
+  let _billCountByDate  = {};    // { 'YYYY-MM-DD': N } — number of bills per session
+  let _ftMetric         = 'for'; // 'for' | 'against' — C1 toggle state
+  let _ftCurrentFrom    = null;  // current brush range for C1
+  let _ftCurrentTo      = null;
 
   function rollingAvg(arr, window) {
     return arr.map((val, i) => {
@@ -1077,7 +1104,8 @@
         const v = factionSummary[d]?.[fid];
         if (!v) return null;
         const total = v.for + v.against + v.abstain + v.not_voting;
-        return total > 0 ? +(v.for / total * 100).toFixed(1) : null;
+        const num = _ftMetric === 'against' ? v.against : v.for;
+        return total > 0 ? +(num / total * 100).toFixed(1) : null;
       });
       const color = factionColor(fid);
       return {
@@ -1201,12 +1229,28 @@
     }
 
     const ftBrush = initBrush('ftBrushWrap', 'ftBrushSel', 'ftBrushHL', 'ftBrushHR',
-      (ps, pe) => { const [s, e] = brushToDateRange(ps, pe); renderFactionTrendChart(s, e); });
+      (ps, pe) => {
+        const [s, e] = brushToDateRange(ps, pe);
+        _ftCurrentFrom = s; _ftCurrentTo = e;
+        renderFactionTrendChart(s, e);
+      });
     ftBrush.set(pStart, 1.0);
 
     const coalBrush = initBrush('coalBrushWrap', 'coalBrushSel', 'coalBrushHL', 'coalBrushHR',
       (ps, pe) => { const [s, e] = brushToDateRange(ps, pe); renderCoalitionChart(rows, s, e); });
     coalBrush.set(pStart, 1.0);
+
+    // Wire За/Проти toggle
+    document.querySelectorAll('#ftMetricToggle .metric-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.metric === _ftMetric) return;
+        _ftMetric = btn.dataset.metric;
+        document.querySelectorAll('#ftMetricToggle .metric-btn').forEach(b =>
+          b.classList.toggle('active', b.dataset.metric === _ftMetric));
+        renderFactionTrendOverview(_allFactionDates);
+        if (_ftCurrentFrom) renderFactionTrendChart(_ftCurrentFrom, _ftCurrentTo);
+      });
+    });
   }
 
   function renderFactionTrendChart(dateFrom, dateTo) {
@@ -1228,7 +1272,8 @@
         const v = factionSummary[d]?.[fid];
         if (!v) return null;
         const total = v.for + v.against + v.abstain + v.not_voting;
-        return total > 0 ? +(v.for / total * 100).toFixed(1) : null;
+        const num = _ftMetric === 'against' ? v.against : v.for;
+        return total > 0 ? +(num / total * 100).toFixed(1) : null;
       });
       const smoothed = rollingAvg(raw, 3);
       const color = factionColor(fid);
@@ -1251,7 +1296,7 @@
     });
 
     document.querySelector('#faction-trend-title .title-text').textContent =
-      `% «за» по фракціях · ковзне середнє 3 засідання (${dateFrom} — ${dateTo})`;
+      `% «${_ftMetric === 'against' ? 'проти' : 'за'}» по фракціях · ковзне середнє 3 засідання (${dateFrom} — ${dateTo})`;
 
     if (factionTrendInstance) factionTrendInstance.destroy();
     const ctx = document.getElementById('factionTrendChart').getContext('2d');
@@ -1290,7 +1335,7 @@
           },
           y: {
             min: 0,
-            max: 100,
+            max: _ftMetric === 'against' ? 40 : 100,
             grid: { color: 'rgba(37,45,61,0.8)' },
             ticks: {
               color: '#64748b',
@@ -1678,7 +1723,7 @@
       history.replaceState(null, '', `?from=${dateFrom}&to=${dateTo}`);
       const metrics = getMetrics(rows, dateFrom, dateTo);
       renderCards(metrics);
-      renderDonut(metrics ? metrics.passed : 0, metrics ? metrics.failed : 0);
+      renderFactionHeatmap(dateFrom, dateTo);
       const chartDates = getChartDates(rows, dateFrom, dateTo);
       const isRange = dateFrom !== dateTo;
       const chartLabel = isRange
@@ -1692,6 +1737,9 @@
       renderTable(rows, agendaMap, dateFrom, dateTo);
       // C1 and C3 are brush-controlled — not driven by date filter
     }
+
+    // Pre-compute bill count per date for heatmap tooltips
+    rows.forEach(r => { _billCountByDate[r.date_agenda] = (_billCountByDate[r.date_agenda] || 0) + 1; });
 
     renderAll(initialFrom, initialTo);
     initBrushCharts(rows); // one-time setup for C1 and C3
