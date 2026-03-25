@@ -146,6 +146,22 @@
       font-family: 'IBM Plex Mono', monospace;
       letter-spacing: .02em;
     }
+    .refresh-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: .75rem;
+      width: 22px; height: 22px;
+      border-radius: 2px;
+      cursor: pointer;
+      vertical-align: middle;
+      margin-left: .35rem;
+      transition: color .15s, border-color .15s, transform .3s;
+      line-height: 1;
+    }
+    .refresh-btn:hover { color: var(--text); border-color: var(--muted); }
+    .refresh-btn:active { transform: rotate(180deg); }
+
     .header-filter {
       display: flex;
       align-items: center;
@@ -547,7 +563,7 @@
   <header>
     <div class="header-title">
       <h1>Верховна Рада IX · Аналіз голосувань</h1>
-      <p>Дані: data.rada.gov.ua · оновлено щогодини</p>
+      <p>Дані: data.rada.gov.ua · оновлено щогодини <button class="refresh-btn" onclick="retryInit()" title="Оновити дані">↻</button></p>
       <p style="margin-top:.15rem">Автор: Гацко Валентин · КШЕ</p>
     </div>
     <div class="header-filter">
@@ -781,10 +797,16 @@
   }
 
   // ── Data loading ──────────────────────────────────────────
+  let _bustCache = false;
+  function cacheBust(url) {
+    if (!_bustCache) return url;
+    return url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
+  }
+
   async function loadData() {
     const [csvRes, jsonRes] = await Promise.all([
-      fetch(CSV_URL),
-      fetch(JSON_URL),
+      fetch(cacheBust(CSV_URL)),
+      fetch(cacheBust(JSON_URL)),
     ]);
 
     if (!csvRes.ok)  throw new Error(`CSV: ${csvRes.status}`);
@@ -816,10 +838,10 @@
   let factionSummary = null; // { date: { faction_id: { for, against, abstain, not_voting, absent } } }
 
   async function loadFactionData() {
-    if (factionSummary) return factionSummary;
+    if (factionSummary && !_bustCache) return factionSummary;
     const [summaryRes, dictRes] = await Promise.all([
-      fetch(FACTION_URL),
-      fetch(FACTIONS_DICT_URL),
+      fetch(cacheBust(FACTION_URL)),
+      fetch(cacheBust(FACTIONS_DICT_URL)),
     ]);
     if (!summaryRes.ok) throw new Error(`faction_summary.json: ${summaryRes.status}`);
     factionSummary = await summaryRes.json();
@@ -1866,7 +1888,11 @@
   });
 
   function retryInit() {
-    init();
+    _bustCache = true;
+    factionSummary = null;
+    // Clear URL params so init() picks up the new maxDate
+    history.replaceState(null, '', location.pathname);
+    init().finally(() => { _bustCache = false; });
   }
 
   init();
