@@ -678,7 +678,11 @@
             <button class="metric-btn active" data-metric="for">За</button>
             <button class="metric-btn" data-metric="against">Проти</button>
           </div>
-          <button class="info-btn" tabindex="0">i<div class="info-popup">Частка голосів «за» (або «проти») від загальної кількості голосів фракції (за + проти + утримались + не голосували) за кожне засідання. Показано топ-5 фракцій за обсягом голосувань. Лінія згладжена ковзним середнім за 3 засідання. Використовуйте мініграфік знизу для вибору діапазону.</div></button>
+          <div class="metric-toggle" id="ftSmoothToggle">
+            <button class="metric-btn active" data-smooth="0">Точно</button>
+            <button class="metric-btn" data-smooth="3">Ковзне ×3</button>
+          </div>
+          <button class="info-btn" tabindex="0">i<div class="info-popup">Частка голосів «за» (або «проти») від загальної кількості голосів фракції (за + проти + утримались + не голосували) за кожне засідання. Показано топ-5 фракцій за обсягом голосувань. Використовуйте мініграфік знизу для вибору діапазону.</div></button>
         </div>
       </div>
       <div style="position:relative;height:320px">
@@ -702,6 +706,22 @@
       </div>
       <div style="position:relative;height:240px">
         <canvas id="quorumMarginChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Initiator pass rate chart -->
+    <div class="chart-card" style="margin-bottom:2rem">
+      <div class="section-title" id="initiator-title"><span class="title-text">% прийнято за ініціатором</span>
+        <div style="display:flex;align-items:center;gap:.5rem;margin-left:auto">
+          <div class="metric-toggle" id="initSmoothToggle">
+            <button class="metric-btn active" data-smooth="0">Точно</button>
+            <button class="metric-btn" data-smooth="3">Ковзне ×3</button>
+          </div>
+          <button class="info-btn" tabindex="0">i<div class="info-popup">Відсоток прийнятих рішень за кожне засідання залежно від ініціатора: народні депутати, Президент або Кабінет Міністрів. Процедурні питання не враховуються. В дужках — загальна кількість законопроектів за період.</div></button>
+        </div>
+      </div>
+      <div style="position:relative;height:240px">
+        <canvas id="initiatorChart"></canvas>
       </div>
     </div>
 
@@ -1166,6 +1186,7 @@
   let _allFactionDates  = null;  // sorted date strings from factionSummary
   let _billCountByDate  = {};    // { 'YYYY-MM-DD': N } — number of bills per session
   let _ftMetric         = 'for'; // 'for' | 'against' — C1 toggle state
+  let _ftSmooth         = 0;    // 0 = raw, 3 = rolling avg window
   let _ftCurrentFrom    = null;  // current brush range for C1
   let _ftCurrentTo      = null;
 
@@ -1379,6 +1400,19 @@
         if (_ftCurrentFrom) renderFactionTrendChart(_ftCurrentFrom, _ftCurrentTo);
       });
     });
+
+    // Smooth toggle for C1
+    document.querySelectorAll('#ftSmoothToggle .metric-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = +btn.dataset.smooth;
+        if (val === _ftSmooth) return;
+        _ftSmooth = val;
+        document.querySelectorAll('#ftSmoothToggle .metric-btn').forEach(b =>
+          b.classList.toggle('active', +b.dataset.smooth === _ftSmooth));
+        renderFactionTrendOverview(_allFactionDates);
+        if (_ftCurrentFrom) renderFactionTrendChart(_ftCurrentFrom, _ftCurrentTo);
+      });
+    });
   }
 
   function renderFactionTrendChart(dateFrom, dateTo) {
@@ -1403,11 +1437,11 @@
         const num = _ftMetric === 'against' ? v.against : v.for;
         return total > 0 ? +(num / total * 100).toFixed(1) : null;
       });
-      const smoothed = rollingAvg(raw, 3);
+      const data = _ftSmooth > 0 ? rollingAvg(raw, _ftSmooth) : raw;
       const color = factionColor(fid);
       return {
         label: FACTION_NAMES[fid] || `Фракція ${fid}`,
-        data: smoothed,
+        data,
         borderColor: color,
         backgroundColor: color,
         fill: false,
@@ -1423,8 +1457,9 @@
       return `${day}.${m}`;
     });
 
+    const smoothLabel = _ftSmooth > 0 ? ` · ковзне ×${_ftSmooth}` : '';
     document.querySelector('#faction-trend-title .title-text').textContent =
-      `% «${_ftMetric === 'against' ? 'проти' : 'за'}» по фракціях · ковзне середнє 3 засідання (${dateFrom} — ${dateTo})`;
+      `% «${_ftMetric === 'against' ? 'проти' : 'за'}» по фракціях${smoothLabel} (${dateFrom} — ${dateTo})`;
 
     if (factionTrendInstance) factionTrendInstance.destroy();
     const ctx = document.getElementById('factionTrendChart').getContext('2d');
@@ -1555,6 +1590,107 @@
               font: { family: 'IBM Plex Mono', size: 11 },
               callback: v => v + '%',
             },
+          },
+        },
+      },
+    });
+  }
+
+  // ── Initiator pass rate line chart ───────────────────────
+  let initiatorChartInstance = null;
+  let _initSmooth = 0;
+
+  function renderInitiatorChart(rows, agendaMap, dateFrom, dateTo) {
+    const filtered = rows.filter(r => r.date_agenda >= dateFrom && r.date_agenda <= dateTo);
+
+    // Group by date → initiator
+    const ORDER = ['Депутат', 'Президент', 'КМУ'];
+    const INIT_COLORS = {
+      'Депутат':   'rgba(74,144,217,1)',
+      'Президент': 'rgba(255,193,7,1)',
+      'КМУ':       'rgba(76,175,80,1)',
+    };
+    const byDate = {};
+    filtered.forEach(r => {
+      const meta = agendaMap.get(String(+r.id_question));
+      if (!meta) return;
+      const init = meta.init;
+      let label;
+      if (init === 'Д') label = 'Депутат';
+      else if (init === 'П') label = 'Президент';
+      else if (init === 'К' || init === 'У') label = 'КМУ';
+      else return;
+      const d = r.date_agenda;
+      if (!byDate[d]) byDate[d] = {};
+      if (!byDate[d][label]) byDate[d][label] = { passed: 0, total: 0 };
+      byDate[d][label].total++;
+      if (r.voting_result === '1') byDate[d][label].passed++;
+    });
+
+    const dates = Object.keys(byDate).sort();
+    const dateLabels = dates.map(d => { const [,m,day] = d.split('-'); return `${day}.${m}`; });
+
+    // Per-session pass rate per initiator
+    const datasets = ORDER.map(label => {
+      const raw = dates.map(d => {
+        const g = byDate[d]?.[label];
+        return g && g.total > 0 ? Math.round(g.passed / g.total * 100) : null;
+      });
+      const data = _initSmooth > 0 ? rollingAvg(raw, _initSmooth) : raw;
+      const totalBills = dates.reduce((s, d) => s + (byDate[d]?.[label]?.total || 0), 0);
+      return {
+        label: `${label} (${totalBills})`,
+        data,
+        borderColor: INIT_COLORS[label],
+        backgroundColor: INIT_COLORS[label].replace(',1)', ',0.1)'),
+        borderWidth: 2,
+        pointRadius: dates.length > 30 ? 0 : 3,
+        pointHoverRadius: 5,
+        tension: 0.3,
+        spanGaps: true,
+      };
+    }).filter(ds => ds.data.some(v => v !== null));
+
+    if (initiatorChartInstance) initiatorChartInstance.destroy();
+    const ctx = document.getElementById('initiatorChart').getContext('2d');
+    initiatorChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: { labels: dateLabels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            labels: { color: 'rgba(255,255,255,.7)', font: { family: "'IBM Plex Sans', sans-serif", size: 11 }, boxWidth: 14, padding: 12 },
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const d = dates[ctx.dataIndex];
+                const g = byDate[d]?.[ORDER[datasets.indexOf(ctx.dataset)]];
+                const raw = g ? `${g.passed}/${g.total}` : '';
+                return `${ctx.dataset.label.split(' (')[0]}: ${ctx.parsed.y}%` + (raw ? ` (${raw})` : '');
+              },
+            },
+          },
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            ticks: { color: 'rgba(255,255,255,.5)', callback: v => v + '%', font: { family: "'IBM Plex Mono', monospace", size: 11 } },
+            grid: { color: 'rgba(255,255,255,.06)' },
+          },
+          x: {
+            ticks: {
+              color: 'rgba(255,255,255,.45)',
+              font: { family: "'IBM Plex Mono', monospace", size: 10 },
+              maxRotation: 45,
+              autoSkip: true,
+              maxTicksLimit: 20,
+            },
+            grid: { display: false },
           },
         },
       },
@@ -1867,6 +2003,7 @@
       renderChart(getChartData(rows, dateFrom, dateTo), dateFrom, dateTo);
       renderForChart(getChartDataFor(rows, dateFrom, dateTo), dateFrom, dateTo);
       renderPassRateChart(rows, dateFrom, dateTo);
+      renderInitiatorChart(rows, agendaMap, dateFrom, dateTo);
       renderTable(rows, agendaMap, dateFrom, dateTo);
       // C1 and C3 are brush-controlled — not driven by date filter
     }
@@ -1876,6 +2013,18 @@
 
     renderAll(initialFrom, initialTo);
     initBrushCharts(rows); // one-time setup for C1 and C3
+
+    // Smooth toggle for initiator chart
+    document.querySelectorAll('#initSmoothToggle .metric-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = +btn.dataset.smooth;
+        if (val === _initSmooth) return;
+        _initSmooth = val;
+        document.querySelectorAll('#initSmoothToggle .metric-btn').forEach(b =>
+          b.classList.toggle('active', +b.dataset.smooth === _initSmooth));
+        renderInitiatorChart(rows, agendaMap, inputFrom.value, inputTo.value);
+      });
+    });
 
     // Date input change
     function clearPreset() {
