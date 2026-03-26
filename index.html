@@ -606,6 +606,14 @@
       <label for="date-to">До:</label>
       <input type="date" id="date-to" />
     </div>
+    <div class="init-filter" id="init-filter">
+      <span class="init-filter-label">Ініціатор:</span>
+      <button class="init-btn active" data-init="all">Всі</button>
+      <button class="init-btn" data-init="Д">Депутат</button>
+      <button class="init-btn" data-init="П">Президент</button>
+      <button class="init-btn" data-init="К">КМУ</button>
+      <button class="init-btn" data-init="0">Процедурні</button>
+    </div>
   </header>
 
   <!-- Tab navigation -->
@@ -752,14 +760,6 @@
       <div class="section-title" style="margin-bottom:0">Голосування</div>
       <input type="text" id="search-input" class="search-input" placeholder="Пошук за назвою або номером…" />
       <span class="search-count" id="search-count"></span>
-      <div class="init-filter" id="init-filter">
-        <span class="init-filter-label">Ініціатор:</span>
-        <button class="init-btn active" data-init="all">Всі</button>
-        <button class="init-btn" data-init="Д">Депутат</button>
-        <button class="init-btn" data-init="П">Президент</button>
-        <button class="init-btn" data-init="К">КМУ</button>
-        <button class="init-btn" data-init="0">Процедурні</button>
-      </div>
     </div>
     <div class="table-wrap">
       <table>
@@ -1987,24 +1987,38 @@
     inputTo.value   = initialTo;
 
     // Render helper
+    let currentInitFilter = 'all';
+
+    function filterByInit(rowsArr) {
+      if (currentInitFilter === 'all') return rowsArr;
+      return rowsArr.filter(r => {
+        const meta = agendaMap.get(String(+r.id_question));
+        const init = meta ? meta.init : '0';
+        if (currentInitFilter === '0') return init === '0' || init === '';
+        if (currentInitFilter === 'К') return init === 'К' || init === 'У';
+        return init === currentInitFilter;
+      });
+    }
+
     function renderAll(dateFrom, dateTo) {
       if (dateFrom > dateTo) { [dateFrom, dateTo] = [dateTo, dateFrom]; }
       history.replaceState(null, '', `?from=${dateFrom}&to=${dateTo}`);
-      const metrics = getMetrics(rows, dateFrom, dateTo);
+      const filteredRows = filterByInit(rows);
+      const metrics = getMetrics(filteredRows, dateFrom, dateTo);
       renderCards(metrics);
-      renderFactionHeatmap(dateFrom, dateTo);
-      const chartDates = getChartDates(rows, dateFrom, dateTo);
+      renderFactionHeatmap(dateFrom, dateTo); // uses factionSummary, no initiator data
+      const chartDates = getChartDates(filteredRows, dateFrom, dateTo);
       const isRange = dateFrom !== dateTo;
       const chartLabel = isRange
         ? `${chartDates.length} засідань (${dateFrom} — ${dateTo})`
         : 'останні 15 засідань';
       document.querySelector('#attendance-title .title-text').textContent = `Явка по датах (${chartLabel})`;
       document.querySelector('#for-title .title-text').textContent = `Середні голоси «за» (${chartLabel})`;
-      renderChart(getChartData(rows, dateFrom, dateTo), dateFrom, dateTo);
-      renderForChart(getChartDataFor(rows, dateFrom, dateTo), dateFrom, dateTo);
-      renderPassRateChart(rows, dateFrom, dateTo);
-      renderInitiatorChart(rows, agendaMap, dateFrom, dateTo);
-      renderTable(rows, agendaMap, dateFrom, dateTo);
+      renderChart(getChartData(filteredRows, dateFrom, dateTo), dateFrom, dateTo);
+      renderForChart(getChartDataFor(filteredRows, dateFrom, dateTo), dateFrom, dateTo);
+      renderPassRateChart(filteredRows, dateFrom, dateTo);
+      renderInitiatorChart(filteredRows, agendaMap, dateFrom, dateTo);
+      renderTable(filteredRows, agendaMap, dateFrom, dateTo);
       // C1 and C3 are brush-controlled — not driven by date filter
     }
 
@@ -2051,48 +2065,32 @@
       });
     });
 
-    // ── Initiator filter ──
-    let currentInitFilter = 'all';
-    function getVisibleRows() {
-      let rows = currentFilteredRows;
-      if (currentInitFilter !== 'all') {
-        rows = rows.filter(r => {
-          const meta = currentAgendaMap.get(String(+r.id_question));
-          const init = meta ? meta.init : '0';
-          if (currentInitFilter === '0') return init === '0' || init === '';
-          if (currentInitFilter === 'К') return init === 'К' || init === 'У';
-          return init === currentInitFilter;
-        });
-      }
-      const q = document.getElementById('search-input').value.toLowerCase().trim();
-      if (q) {
-        rows = rows.filter(r => {
-          const meta = currentAgendaMap.get(String(+r.id_question));
-          if (!meta) return false;
-          return meta.name.toLowerCase().includes(q) || (meta.number && meta.number.includes(q));
-        });
-      }
-      return rows;
-    }
-    function applyFilters() {
-      const rows = getVisibleRows();
-      const q = document.getElementById('search-input').value.trim();
-      document.getElementById('search-count').textContent =
-        (q || currentInitFilter !== 'all') ? `${rows.length} з ${currentFilteredRows.length}` : '';
-      renderRows(rows);
-    }
-
+    // ── Initiator filter (global — affects charts + table) ──
     document.querySelectorAll('#init-filter .init-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('#init-filter .init-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentInitFilter = btn.dataset.init;
-        applyFilters();
+        renderAll(inputFrom.value, inputTo.value);
       });
     });
 
-    // Bill name search — re-render virtual scroll with filtered subset
-    document.getElementById('search-input').addEventListener('input', applyFilters);
+    // ── Table search ──
+    function applySearch() {
+      const q = document.getElementById('search-input').value.toLowerCase().trim();
+      const subset = q
+        ? currentFilteredRows.filter(r => {
+            const meta = currentAgendaMap.get(String(+r.id_question));
+            if (!meta) return false;
+            return meta.name.toLowerCase().includes(q) || (meta.number && meta.number.includes(q));
+          })
+        : currentFilteredRows;
+      document.getElementById('search-count').textContent =
+        q ? `${subset.length} з ${currentFilteredRows.length}` : '';
+      renderRows(subset);
+    }
+
+    document.getElementById('search-input').addEventListener('input', applySearch);
 
     // Hide overlay
     const overlay = document.getElementById('overlay');
