@@ -16,14 +16,14 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Run incremental update
+      - name: Update faction summary
         run: python build_faction_summary.py
 
       - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add faction_summary.json faction_summary.meta.json
+          git add faction_summary.json
           git diff --staged --quiet && echo "No changes" && exit 0
           git commit -m "Auto-update faction_summary.json $(date -u +%Y-%m-%d)"
           git push
