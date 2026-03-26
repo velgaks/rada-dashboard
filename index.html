@@ -426,6 +426,20 @@
     }
     .preset-btn:hover { color: var(--text); border-color: var(--muted); }
     .preset-btn.active { color: var(--text); background: rgba(74,144,217,.15); border-color: var(--accent); }
+    .init-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 2px;
+      padding: .3rem .7rem;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .75rem;
+      cursor: pointer;
+      transition: color .15s, border-color .15s, background .15s;
+      white-space: nowrap;
+    }
+    .init-btn:hover { color: var(--text); border-color: var(--muted); }
+    .init-btn.active { color: var(--text); background: rgba(74,144,217,.15); border-color: var(--accent); }
 
     /* ── За/Проти metric toggle (C1) ── */
     .metric-toggle { display: flex; border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
@@ -479,13 +493,27 @@
     tbody tr:hover { background: rgba(74,144,217,.08); }
 
     .td-name {
-      max-width: 340px;
+      max-width: 300px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       color: var(--text);
     }
     .td-name[title] { cursor: pointer; }
+    .td-bill { white-space: nowrap; font-size: .75rem; }
+    .td-init { white-space: nowrap; font-size: .78rem; color: var(--muted); }
+    .init-filter {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      flex-basis: 100%;
+    }
+    .init-filter-label {
+      color: var(--muted);
+      font-size: .82rem;
+      font-family: 'IBM Plex Mono', monospace;
+      margin-right: .25rem;
+    }
     .td-mono {
       font-family: 'IBM Plex Mono', monospace;
       font-size: .8rem;
@@ -704,6 +732,14 @@
       <div class="section-title" style="margin-bottom:0">Голосування</div>
       <input type="text" id="search-input" class="search-input" placeholder="Пошук за назвою…" />
       <span class="search-count" id="search-count"></span>
+      <div class="init-filter" id="init-filter">
+        <span class="init-filter-label">Ініціатор:</span>
+        <button class="init-btn active" data-init="all">Всі</button>
+        <button class="init-btn" data-init="Д">Депутат</button>
+        <button class="init-btn" data-init="П">Президент</button>
+        <button class="init-btn" data-init="К">КМУ</button>
+        <button class="init-btn" data-init="0">Процедурні</button>
+      </div>
     </div>
     <div class="table-wrap">
       <table>
@@ -711,6 +747,8 @@
           <tr>
             <th>#</th>
             <th>Дата</th>
+            <th>№</th>
+            <th>Ініціатор</th>
             <th>Назва питання</th>
             <th>За</th>
             <th>Проти</th>
@@ -822,12 +860,21 @@
     // Build a set of id_questions that actually appear in the CSV
     const csvIds = new Set(rows.map(r => String(+r.id_question)));
 
-    // Filter agenda to only matching IDs
+    // Build map with bill metadata (flat array from plenary_agenda JSON)
     const agendaMap = new Map();
-    agendaArr.forEach(item => {
-      const key = String(+item.id_question);
+    const INIT_LABELS = { 'Д': 'Депутат', 'П': 'Президент', 'К': 'КМУ', 'У': 'НБУ' };
+    const items = Array.isArray(agendaArr) ? agendaArr : (agendaArr.agenda || []);
+    items.forEach(q => {
+      const key = String(+q.id_question);
       if (csvIds.has(key)) {
-        agendaMap.set(key, item.name_question || '');
+        const num = q.number_question;
+        const init = String(q.init_question || '0');
+        agendaMap.set(key, {
+          name:      q.name_question || '',
+          number:    num && num !== 0 && num !== '0' ? String(num) : '',
+          init:      init,
+          initLabel: INIT_LABELS[init] || '',
+        });
       }
     });
 
@@ -1648,7 +1695,10 @@
   let tableObserver       = null;
 
   function makeRow(r, i, agendaMap) {
-    const name   = agendaMap.get(String(+r.id_question)) || '—';
+    const meta   = agendaMap.get(String(+r.id_question)) || { name: '—', number: '', init: '0', initLabel: '' };
+    const name   = meta.name || '—';
+    const billNo = meta.number || '—';
+    const initLabel = meta.initLabel || '—';
     const passed = r.voting_result === '1';
     const tr = document.createElement('tr');
     tr.dataset.name = name.toLowerCase();
@@ -1662,6 +1712,8 @@
     tr.innerHTML = `
       <td class="td-mono">${i + 1}</td>
       <td class="td-mono">${r.date_agenda}</td>
+      <td class="td-mono td-bill">${escapeHtml(billNo)}</td>
+      <td class="td-init">${escapeHtml(initLabel)}</td>
       <td class="td-name" title="${escapeHtml(name)}">${escapeHtml(name)}</td>
       <td class="td-mono">${r.for}</td>
       <td class="td-mono">${r.against}</td>
@@ -1684,7 +1736,7 @@
 
     if (!rows.length) {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td colspan="9" style="text-align:center;color:var(--muted);padding:2rem">Голосувань не знайдено</td>`;
+      tr.innerHTML = `<td colspan="11" style="text-align:center;color:var(--muted);padding:2rem">Голосувань не знайдено</td>`;
       tbody.appendChild(tr);
       return;
     }
@@ -1703,7 +1755,7 @@
       if (rendered < rows.length) {
         const sentinel = document.createElement('tr');
         sentinel.className = 'tbl-sentinel';
-        sentinel.innerHTML = `<td colspan="9" style="padding:.6rem;text-align:center;color:var(--muted);font-size:.78rem;font-family:'IBM Plex Mono',monospace">↓ ще ${rows.length - rendered}</td>`;
+        sentinel.innerHTML = `<td colspan="11" style="padding:.6rem;text-align:center;color:var(--muted);font-size:.78rem;font-family:'IBM Plex Mono',monospace">↓ ще ${rows.length - rendered}</td>`;
         tbody.appendChild(sentinel);
         tableObserver = new IntersectionObserver(entries => {
           if (entries[0].isIntersecting) {
@@ -1850,19 +1902,46 @@
       });
     });
 
-    // Bill name search — re-render virtual scroll with filtered subset
-    document.getElementById('search-input').addEventListener('input', function () {
-      const q = this.value.toLowerCase().trim();
-      const subset = q
-        ? currentFilteredRows.filter(r => {
-            const name = currentAgendaMap.get(String(+r.id_question)) || '';
-            return name.toLowerCase().includes(q);
-          })
-        : currentFilteredRows;
+    // ── Initiator filter ──
+    let currentInitFilter = 'all';
+    function getVisibleRows() {
+      let rows = currentFilteredRows;
+      if (currentInitFilter !== 'all') {
+        rows = rows.filter(r => {
+          const meta = currentAgendaMap.get(String(+r.id_question));
+          const init = meta ? meta.init : '0';
+          return currentInitFilter === '0' ? (init === '0' || init === '') : init === currentInitFilter;
+        });
+      }
+      const q = document.getElementById('search-input').value.toLowerCase().trim();
+      if (q) {
+        rows = rows.filter(r => {
+          const meta = currentAgendaMap.get(String(+r.id_question));
+          const name = meta ? meta.name : '';
+          return name.toLowerCase().includes(q);
+        });
+      }
+      return rows;
+    }
+    function applyFilters() {
+      const rows = getVisibleRows();
+      const q = document.getElementById('search-input').value.trim();
       document.getElementById('search-count').textContent =
-        q ? `${subset.length} з ${currentFilteredRows.length}` : '';
-      renderRows(subset);
+        (q || currentInitFilter !== 'all') ? `${rows.length} з ${currentFilteredRows.length}` : '';
+      renderRows(rows);
+    }
+
+    document.querySelectorAll('#init-filter .init-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#init-filter .init-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentInitFilter = btn.dataset.init;
+        applyFilters();
+      });
     });
+
+    // Bill name search — re-render virtual scroll with filtered subset
+    document.getElementById('search-input').addEventListener('input', applyFilters);
 
     // Hide overlay
     const overlay = document.getElementById('overlay');
