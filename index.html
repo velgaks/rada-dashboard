@@ -730,7 +730,7 @@
   <div class="tab-panel" id="tab-table">
     <div class="table-toolbar">
       <div class="section-title" style="margin-bottom:0">Голосування</div>
-      <input type="text" id="search-input" class="search-input" placeholder="Пошук за назвою…" />
+      <input type="text" id="search-input" class="search-input" placeholder="Пошук за назвою або номером…" />
       <span class="search-count" id="search-count"></span>
       <div class="init-filter" id="init-filter">
         <span class="init-filter-label">Ініціатор:</span>
@@ -862,7 +862,7 @@
 
     // Build map with bill metadata (flat array from plenary_agenda JSON)
     const agendaMap = new Map();
-    const INIT_LABELS = { 'Д': 'Депутат', 'П': 'Президент', 'К': 'КМУ', 'У': 'НБУ' };
+    const INIT_LABELS = { 'Д': 'Депутат', 'П': 'Президент', 'К': 'КМУ', 'У': 'КМУ' };
     const items = Array.isArray(agendaArr) ? agendaArr : (agendaArr.agenda || []);
     items.forEach(q => {
       const key = String(+q.id_question);
@@ -1910,15 +1910,17 @@
         rows = rows.filter(r => {
           const meta = currentAgendaMap.get(String(+r.id_question));
           const init = meta ? meta.init : '0';
-          return currentInitFilter === '0' ? (init === '0' || init === '') : init === currentInitFilter;
+          if (currentInitFilter === '0') return init === '0' || init === '';
+          if (currentInitFilter === 'К') return init === 'К' || init === 'У';
+          return init === currentInitFilter;
         });
       }
       const q = document.getElementById('search-input').value.toLowerCase().trim();
       if (q) {
         rows = rows.filter(r => {
           const meta = currentAgendaMap.get(String(+r.id_question));
-          const name = meta ? meta.name : '';
-          return name.toLowerCase().includes(q);
+          if (!meta) return false;
+          return meta.name.toLowerCase().includes(q) || (meta.number && meta.number.includes(q));
         });
       }
       return rows;
