@@ -105,14 +105,29 @@ def save_summary(summary):
     return len(output)
 
 
+def _urlopen_retry(req, retries=3, timeout=60):
+    """urlopen with retry on timeout/connection errors."""
+    import time
+    for attempt in range(retries):
+        try:
+            return urllib.request.urlopen(req, timeout=timeout)
+        except (urllib.error.URLError, TimeoutError) as e:
+            if attempt < retries - 1:
+                wait = 10 * (attempt + 1)
+                print(f"  Retry {attempt + 1}/{retries} after {wait}s — {e}")
+                time.sleep(wait)
+            else:
+                raise
+
+
 def main():
     meta = load_meta()
     old_offset = meta.get("byte_offset", 0)
     old_modified = meta.get("last_modified", "")
 
-    # Step 1: HEAD request to check if file changed
+    # Step 1: HEAD request to check if file changed (with retry)
     head_req = urllib.request.Request(TSV_URL, method="HEAD")
-    head_resp = urllib.request.urlopen(head_req)
+    head_resp = _urlopen_retry(head_req)
     server_modified = head_resp.headers.get("Last-Modified", "")
     server_size = int(head_resp.headers.get("Content-Length", 0))
 
@@ -126,7 +141,7 @@ def main():
         range_req = urllib.request.Request(TSV_URL)
         range_req.add_header("Range", f"bytes={old_offset}-")
         try:
-            range_resp = urllib.request.urlopen(range_req)
+            range_resp = _urlopen_retry(range_req)
             if range_resp.status == 206:
                 chunk = range_resp.read().decode("utf-8")
                 # First line is likely partial — skip it
@@ -152,7 +167,10 @@ def main():
 
     # Step 3: Full download
     print(f"Full download — {server_size / 1024 / 1024:.1f} MB...")
-    urllib.request.urlretrieve(TSV_URL, TSV_PATH)
+    full_req = urllib.request.Request(TSV_URL)
+    full_resp = _urlopen_retry(full_req, timeout=120)
+    with open(TSV_PATH, "wb") as f:
+        f.write(full_resp.read())
     with open(TSV_PATH, encoding="utf-8") as f:
         text = f.read()
     summary = parse_rows(text)
