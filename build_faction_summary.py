@@ -75,14 +75,14 @@ def parse_rows(text):
     return summary
 
 
-def _urlopen_retry(req, retries=3, timeout=60):
+def _urlopen_retry(req, retries=5, timeout=120):
     """urlopen with retry on timeout/connection errors."""
     for attempt in range(retries):
         try:
             return urllib.request.urlopen(req, timeout=timeout)
-        except (urllib.error.URLError, TimeoutError) as e:
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
             if attempt < retries - 1:
-                wait = 10 * (attempt + 1)
+                wait = 15 * (attempt + 1)
                 print(f"  Retry {attempt + 1}/{retries} after {wait}s — {e}")
                 time.sleep(wait)
             else:
@@ -106,9 +106,15 @@ def main():
     # Step 2: Full download (TSV is regenerated, not appended — incremental won't work)
     print(f"Downloading {server_size / 1024 / 1024:.1f} MB...")
     full_req = urllib.request.Request(TSV_URL)
-    full_resp = _urlopen_retry(full_req, timeout=120)
+    full_resp = _urlopen_retry(full_req, timeout=300)
+    # Stream in chunks to avoid timeout on slow connections
     with open(TSV_PATH, "wb") as f:
-        f.write(full_resp.read())
+        while True:
+            chunk = full_resp.read(1024 * 1024)  # 1 MB chunks
+            if not chunk:
+                break
+            f.write(chunk)
+    print(f"Downloaded {os.path.getsize(TSV_PATH) / 1024 / 1024:.1f} MB")
     with open(TSV_PATH, encoding="utf-8") as f:
         text = f.read()
 
