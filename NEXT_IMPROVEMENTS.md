@@ -166,17 +166,35 @@ Implemented: Останнє | Місяць | 3 місяці | Весь час.
 | C1 | Faction % За trend lines | ✅ Done | — | — |
 | C2 | Pass rate bar chart | ✅ Done | — | — |
 | C3 | Coalition dependency stacked area | ✅ Done | — | — |
+| C4 | Faction participation heatmap | ✅ Done | — | — |
+| C5 | Initiator pass rate line chart | ✅ Done | — | — |
 | 2 | Faction breakdown | ✅ Done (via C1+C3) | — | — |
 | 8 | Preset buttons | ✅ Done | — | — |
-| 1 | Export to CSV | Pending | Low | High |
-| 4 | Sort columns | Pending | Low | High |
-| C4 | Faction participation heatmap | ✅ Done | — | — |
-| C5 | Deputy absentee ranking (needs Python) | Pending | Medium | High |
-| 3 | Custom tooltip | Pending | Low | Medium |
-| 7 | Trend line overlay | Pending | Low | Medium |
-| C6 | Faction discipline score (needs Python) | Pending | Medium | Medium |
-| 5 | IndexedDB cache | Pending | Medium | Low |
-| 6 | Auto-refresh timer | Pending | Low | Medium |
-| 9 | Stale-while-revalidate | Pending | Medium | Medium |
-| 10 | Dark/light theme | Pending | Medium | Low |
-| C7 | Deputy vote scatter / PCA map | Pending | High | Very High |
+| 4 | Sort columns | ✅ Done | — | — |
+| — | Bill number + initiator columns | ✅ Done | — | — |
+| — | Global initiator filter | ✅ Done | — | — |
+| — | Colorblind-safe heatmap | ✅ Done | — | — |
+| — | Y-axis labels on all charts | ✅ Done | — | — |
+| — | Info popups tap support | ✅ Done | — | — |
+| — | Full URL state persistence | ✅ Done | — | — |
+| — | Fetch timeout (30s) | ✅ Done | — | — |
+| — | Unfiltered chart indicators | ✅ Done | — | — |
+
+### Next priorities (from LLM council review, 2026-03-31)
+
+| # | Feature | Effort | Impact | Source |
+|---|---------|--------|--------|--------|
+| P1 | Mobile brush touch events | Low | Critical | UX |
+| P2 | Per-vote faction breakdown (row expand/click) | High | Critical | Political, UX |
+| P3 | Faction pairwise similarity matrix | Medium (Python) | Very High | Political |
+| P4 | Faction discipline/cohesion score | Medium (Python) | High | Political |
+| P5 | chart.update() instead of destroy/recreate | Medium | High | Frontend |
+| P6 | Cache 10MB agenda JSON (Cache API/IndexedDB) | Medium | High | Frontend |
+| P7 | Build date-indexed Map for O(1) lookups | Low | High | Frontend |
+| P8 | Export filtered data to CSV | Medium | High | UX |
+| P9 | "Actively voted" vs "registered" heatmap toggle | Low | Medium | Political |
+| P10 | Exclude procedural votes from aggregates by default | Low | Medium | Political |
+| P11 | ARIA roles + canvas labels (accessibility) | Medium | Medium | UX |
+| P12 | Deputy scatter/PCA (UMAP) | High | Very High | Political |
+| P13 | Cross-filter: faction voting by initiator type | Medium (Python) | High | Political |
+| P14 | Open Graph meta tags for Telegram/Twitter sharing | Low | Medium | UX |
