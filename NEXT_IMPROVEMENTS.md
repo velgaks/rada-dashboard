@@ -24,12 +24,8 @@ Implemented as stacked **area** chart (not bar) with monthly aggregation. Shows 
 
 ---
 
-### C4. Faction participation heatmap
-**What:** Grid — rows = factions, columns = sessions (dates), cell color = % of faction deputies who were present (not absent/missing).
-**Why:** Shows boycotts, low-engagement sessions, and patterns across time at a glance.
-**Data:** `faction_summary.json` has `absent` counts; faction totals from `factions.json` API.
-**Effort:** Medium — needs CSS grid or Chart.js matrix plugin.
-**Reference:** Texty deputy × week attendance heatmaps.
+### C4. ✅ DONE — Faction participation heatmap
+Implemented as factions × sessions grid with color-coded presence rate (green→red). Shows last 15 sessions in selected range.
 
 ---
 
@@ -174,7 +170,7 @@ Implemented: Останнє | Місяць | 3 місяці | Весь час.
 | 8 | Preset buttons | ✅ Done | — | — |
 | 1 | Export to CSV | Pending | Low | High |
 | 4 | Sort columns | Pending | Low | High |
-| C4 | Faction participation heatmap | Pending | Medium | High |
+| C4 | Faction participation heatmap | ✅ Done | — | — |
 | C5 | Deputy absentee ranking (needs Python) | Pending | Medium | High |
 | 3 | Custom tooltip | Pending | Low | Medium |
 | 7 | Trend line overlay | Pending | Low | Medium |
