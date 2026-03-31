@@ -161,6 +161,8 @@
     }
     .refresh-btn:hover { color: var(--text); border-color: var(--muted); }
     .refresh-btn:active { transform: rotate(180deg); }
+    .refresh-btn.spinning { animation: spin 1s linear infinite; color: var(--accent); border-color: var(--accent); }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     .header-filter {
       display: flex;
@@ -596,7 +598,7 @@
   <header>
     <div class="header-title">
       <h1>Верховна Рада IX · Аналіз голосувань</h1>
-      <p>Дані: data.rada.gov.ua · оновлено щогодини <button class="refresh-btn" onclick="retryInit()" title="Оновити дані">↻</button></p>
+      <p>Дані: data.rada.gov.ua <span id="cache-age"></span> <button class="refresh-btn" onclick="retryInit()" title="Оновити дані">↻</button></p>
       <p style="margin-top:.15rem">Автор: Гацко Валентин · КШЕ</p>
     </div>
     <div class="header-filter">
@@ -859,12 +861,44 @@
     });
   }
 
+  // ── Cache (localStorage, stale-while-revalidate) ─────────
+  const CACHE_VER = 1;
+  const CK = { csv: 'vrd_csv', agenda: 'vrd_agenda', facSum: 'vrd_facSum', facDict: 'vrd_facDict', meta: 'vrd_meta' };
+  function cacheSet(k, v) {
+    try { localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); }
+    catch { cacheClear(); }
+  }
+  function cacheGet(k, json = true) {
+    try { const r = localStorage.getItem(k); return r == null ? null : (json ? JSON.parse(r) : r); }
+    catch { localStorage.removeItem(k); return null; }
+  }
+  function cacheValid() { const m = cacheGet(CK.meta); return m && m.v === CACHE_VER; }
+  function cacheClear() { Object.values(CK).forEach(k => localStorage.removeItem(k)); }
+  function cacheStamp() { cacheSet(CK.meta, { v: CACHE_VER, t: Date.now() }); }
+
+  function loadDataFromCache() {
+    const csvText = cacheGet(CK.csv, false);
+    const agendaEntries = cacheGet(CK.agenda);
+    if (!csvText || !agendaEntries) return null;
+    return { rows: parseCSV(csvText), agendaMap: new Map(agendaEntries) };
+  }
+  function loadFactionFromCache() {
+    const sum = cacheGet(CK.facSum);
+    const dict = cacheGet(CK.facDict);
+    if (!sum) return null;
+    factionSummary = sum;
+    if (dict) Object.assign(FACTION_NAMES, dict);
+    return factionSummary;
+  }
+
   // ── Data loading ──────────────────────────────────────────
   let _bustCache = false;
   function cacheBust(url) {
     if (!_bustCache) return url;
     return url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
   }
+
+  const INIT_LABELS = { 'Д': 'Депутат', 'П': 'Президент', 'К': 'КМУ', 'У': 'КМУ' };
 
   async function loadData() {
     const controller = new AbortController();
@@ -887,13 +921,8 @@
     ]);
 
     const rows = parseCSV(csvText);
-
-    // Build a set of id_questions that actually appear in the CSV
     const csvIds = new Set(rows.map(r => String(+r.id_question)));
-
-    // Build map with bill metadata (flat array from plenary_agenda JSON)
     const agendaMap = new Map();
-    const INIT_LABELS = { 'Д': 'Депутат', 'П': 'Президент', 'К': 'КМУ', 'У': 'КМУ' };
     const items = Array.isArray(agendaArr) ? agendaArr : (agendaArr.agenda || []);
     items.forEach(q => {
       const key = String(+q.id_question);
@@ -909,14 +938,18 @@
       }
     });
 
+    // Persist to cache
+    cacheSet(CK.csv, csvText);
+    cacheSet(CK.agenda, [...agendaMap]);
+    cacheStamp();
+
     return { rows, agendaMap };
   }
 
   // ── Faction data ──────────────────────────────────────────
-  let factionSummary = null; // { date: { faction_id: { for, against, abstain, not_voting, absent } } }
+  let factionSummary = null;
 
   async function loadFactionData() {
-    if (factionSummary && !_bustCache) return factionSummary;
     const [summaryRes, dictRes] = await Promise.all([
       fetch(cacheBust(FACTION_URL)),
       fetch(cacheBust(FACTIONS_DICT_URL)),
@@ -936,6 +969,9 @@
         FACTION_NAMES[f.id] = name;
       });
     }
+    // Persist to cache
+    cacheSet(CK.facSum, factionSummary);
+    cacheSet(CK.facDict, FACTION_NAMES);
     return factionSummary;
   }
 
@@ -1969,20 +2005,37 @@
   // ── Bootstrap ─────────────────────────────────────────────
   async function init() {
     hideError();
-    document.getElementById('overlay').style.display = 'flex';
-    document.getElementById('overlay').classList.remove('hidden');
+    const overlay = document.getElementById('overlay');
 
     let rows, agendaMap;
-    try {
-      [{ rows, agendaMap }] = await Promise.all([
-        loadData(),
-        loadFactionData(),
-      ]);
-    } catch (err) {
-      console.error(err);
-      showError(buildErrorMessage(err));
-      document.getElementById('overlay').classList.add('hidden');
-      return;
+    let fromCache = false;
+
+    // Try cache first (SWR: show stale data immediately)
+    if (!_bustCache && cacheValid()) {
+      const cached = loadDataFromCache();
+      const cachedFaction = loadFactionFromCache();
+      if (cached && cachedFaction) {
+        rows = cached.rows;
+        agendaMap = cached.agendaMap;
+        fromCache = true;
+      }
+    }
+
+    if (!fromCache) {
+      // No cache — blocking network fetch with spinner
+      overlay.style.display = 'flex';
+      overlay.classList.remove('hidden');
+      try {
+        [{ rows, agendaMap }] = await Promise.all([
+          loadData(),
+          loadFactionData(),
+        ]);
+      } catch (err) {
+        console.error(err);
+        showError(buildErrorMessage(err));
+        overlay.classList.add('hidden');
+        return;
+      }
     }
 
     // Date inputs setup
@@ -2060,6 +2113,16 @@
 
     renderAll(initialFrom, initialTo);
     initBrushCharts(rows); // one-time setup for C1 and C3
+
+    // Update cache age indicator
+    const cm = cacheGet(CK.meta);
+    const cacheAgeEl = document.getElementById('cache-age');
+    if (cm && cacheAgeEl) {
+      const mins = Math.round((Date.now() - cm.t) / 60000);
+      cacheAgeEl.textContent = fromCache
+        ? (mins < 1 ? '· кеш: щойно' : mins < 60 ? `· кеш: ${mins} хв` : `· кеш: ${Math.floor(mins/60)} год`)
+        : '· оновлено';
+    }
 
     // Smooth toggle for initiator chart
     document.querySelectorAll('#initSmoothToggle .metric-btn').forEach(btn => {
@@ -2152,9 +2215,30 @@
     });
 
     // Hide overlay
-    const overlay = document.getElementById('overlay');
     overlay.classList.add('hidden');
     setTimeout(() => { overlay.style.display = 'none'; }, 350);
+
+    // SWR: background revalidation after cached render
+    if (fromCache) {
+      const refreshBtn = document.querySelector('.refresh-btn');
+      if (refreshBtn) refreshBtn.classList.add('spinning');
+      Promise.all([loadData(), loadFactionData()])
+        .then(([fresh]) => {
+          if (refreshBtn) refreshBtn.classList.remove('spinning');
+          const changed = fresh.rows.length !== rows.length ||
+            fresh.rows[0]?.date_agenda !== rows[0]?.date_agenda;
+          if (cacheAgeEl) cacheAgeEl.textContent = '· оновлено';
+          if (changed) {
+            rows = fresh.rows;
+            agendaMap = fresh.agendaMap;
+            _billCountByDate = {};
+            rows.forEach(r => { _billCountByDate[r.date_agenda] = (_billCountByDate[r.date_agenda] || 0) + 1; });
+            renderAll(inputFrom.value, inputTo.value);
+            initBrushCharts(rows);
+          }
+        })
+        .catch(() => { if (refreshBtn) refreshBtn.classList.remove('spinning'); });
+    }
   }
 
   // ── Info popup tap toggle (mobile support) ──────────────────
@@ -2194,7 +2278,7 @@
   function retryInit() {
     _bustCache = true;
     factionSummary = null;
-    // Clear URL params so init() picks up the new maxDate
+    cacheClear();
     history.replaceState(null, '', location.pathname);
     init().finally(() => { _bustCache = false; });
   }
