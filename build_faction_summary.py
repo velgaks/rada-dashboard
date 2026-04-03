@@ -5,8 +5,9 @@ Downloads plenary_vote_results-skl9.tsv and produces faction_summary.json.
 The TSV file is regenerated with newest sessions prepended (not appended),
 so byte-range incremental downloads don't work. Instead we:
   1. Skip — server file unchanged (Last-Modified matches) → nothing to do
-  2. Full — download entire file, parse, write summary
+  2. Full — download entire file via curl, parse, write summary
 
+Uses curl for downloads (robust retries, timeouts, progress) and Python for parsing.
 Metadata (last-modified) stored in faction_summary.meta.json.
 
 Output format:
@@ -24,8 +25,8 @@ Results column format: deputy_id:faction_id:vote_code|...
 
 import json
 import os
-import time
-import urllib.request
+import subprocess
+import sys
 from collections import defaultdict
 
 TSV_URL   = "https://data.rada.gov.ua/ogd/zal/ppz/skl9/plenary_vote_results-skl9.tsv"
@@ -46,6 +47,37 @@ def load_meta():
 def save_meta(last_modified):
     with open(META_PATH, "w", encoding="utf-8") as f:
         json.dump({"last_modified": last_modified}, f)
+
+
+def curl_head(url):
+    """HEAD request via curl. Returns dict of headers."""
+    r = subprocess.run(
+        ["curl", "-sS", "-I", "--connect-timeout", "15", "--max-time", "30",
+         "--retry", "3", "--retry-delay", "10", "--retry-max-time", "90", url],
+        capture_output=True, text=True, timeout=120,
+    )
+    if r.returncode != 0:
+        print(f"curl HEAD failed (exit {r.returncode}): {r.stderr.strip()}", flush=True)
+        sys.exit(1)
+    headers = {}
+    for line in r.stdout.splitlines():
+        if ":" in line:
+            k, v = line.split(":", 1)
+            headers[k.strip().lower()] = v.strip()
+    return headers
+
+
+def curl_download(url, dest):
+    """Download file via curl with progress, retries, and resume."""
+    r = subprocess.run(
+        ["curl", "-sS", "-o", dest, "--connect-timeout", "30", "--max-time", "600",
+         "--retry", "5", "--retry-delay", "10", "--retry-max-time", "300",
+         "-C", "-", url],
+        capture_output=True, text=True, timeout=660,
+    )
+    if r.returncode != 0:
+        print(f"curl download failed (exit {r.returncode}): {r.stderr.strip()}", flush=True)
+        sys.exit(1)
 
 
 def parse_rows(text):
@@ -75,49 +107,31 @@ def parse_rows(text):
     return summary
 
 
-def _urlopen_retry(req, retries=5, timeout=120):
-    """urlopen with retry on timeout/connection errors."""
-    for attempt in range(retries):
-        try:
-            return urllib.request.urlopen(req, timeout=timeout)
-        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as e:
-            if attempt < retries - 1:
-                wait = 15 * (attempt + 1)
-                print(f"  Retry {attempt + 1}/{retries} after {wait}s — {e}")
-                time.sleep(wait)
-            else:
-                raise
-
-
 def main():
     meta = load_meta()
     old_modified = meta.get("last_modified", "")
 
     # Step 1: HEAD request to check if file changed
-    head_req = urllib.request.Request(TSV_URL, method="HEAD")
-    head_resp = _urlopen_retry(head_req)
-    server_modified = head_resp.headers.get("Last-Modified", "")
-    server_size = int(head_resp.headers.get("Content-Length", 0))
+    print(f"HEAD {TSV_URL}", flush=True)
+    headers = curl_head(TSV_URL)
+    server_modified = headers.get("last-modified", "")
+    server_size = int(headers.get("content-length", 0))
+    print(f"  Last-Modified: {server_modified}  Size: {server_size / 1024 / 1024:.1f} MB", flush=True)
 
     if old_modified and server_modified == old_modified:
         print(f"Skip — file unchanged ({server_modified})")
         return
 
-    # Step 2: Full download (TSV is regenerated, not appended — incremental won't work)
-    print(f"Downloading {server_size / 1024 / 1024:.1f} MB...")
-    full_req = urllib.request.Request(TSV_URL)
-    full_resp = _urlopen_retry(full_req, timeout=300)
-    # Stream in chunks to avoid timeout on slow connections
-    with open(TSV_PATH, "wb") as f:
-        while True:
-            chunk = full_resp.read(1024 * 1024)  # 1 MB chunks
-            if not chunk:
-                break
-            f.write(chunk)
-    print(f"Downloaded {os.path.getsize(TSV_PATH) / 1024 / 1024:.1f} MB")
+    # Step 2: Full download via curl (robust retries, resume support)
+    print(f"Downloading {server_size / 1024 / 1024:.1f} MB...", flush=True)
+    curl_download(TSV_URL, TSV_PATH)
+    actual_size = os.path.getsize(TSV_PATH)
+    print(f"Downloaded {actual_size / 1024 / 1024:.1f} MB", flush=True)
+
     with open(TSV_PATH, encoding="utf-8") as f:
         text = f.read()
 
+    print("Parsing...", flush=True)
     summary = parse_rows(text)
     # Convert defaultdicts to plain dicts for JSON serialization
     plain = {date: {fid: dict(votes) for fid, votes in factions.items()} for date, factions in summary.items()}

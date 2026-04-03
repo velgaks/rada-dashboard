@@ -21,7 +21,7 @@ jobs:
 
       - name: Update faction summary
         run: python build_faction_summary.py
-        timeout-minutes: 10
+        timeout-minutes: 15
 
       - name: Commit and push if changed
         run: |
