@@ -56,21 +56,17 @@ Implemented as factions × sessions grid with color-coded presence rate (green�
 
 ## 🔴 High Impact / Low–Medium Effort
 
-### 1. Export table to CSV
-**What:** "Завантажити CSV" button that downloads the currently visible/filtered table as a `.csv` file.
-**Why:** Analysts want to work with the data in Excel / Google Sheets. With range support now built in, a multi-session export is genuinely useful.
-**How:**
-```js
-const headers = ['#', 'Дата', 'Назва', 'За', 'Проти', 'Утрим', 'Не голос', 'Явка', 'Результат'];
-const csv = [headers, ...currentFilteredRows.map((r, i) => [
-  i + 1, r.date_agenda,
-  currentAgendaMap.get(String(+r.id_question)) || '—',
-  r.for, r.against, r.abstain, r.not_voting, r.presence,
-  r.voting_result === '1' ? 'Прийнято' : 'Провалено'
-])].map(r => r.join(',')).join('\n');
-const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-```
-`\uFEFF` BOM is required for correct Cyrillic in Excel.
+### 1. ✅ DONE (2026-08-05) — Export table to CSV
+"Завантажити CSV" button in the table toolbar. Exports exactly what is on screen — date range,
+initiator filter, search **and** sort — via `currentVisibleRows`, which `renderRows()` records as
+the single funnel every display path passes through.
+
+⚠️ **The snippet originally sketched here was wrong and was not used.** It did `r.join(',')`
+with no quoting; Ukrainian bill names routinely contain commas and quotes, which would have
+shifted columns on every such row. The implementation uses RFC 4180 quoting (`csvCell()` —
+double any `"`, wrap when the value contains `,`, `"`, CR or LF) and CRLF row separators.
+The `\uFEFF` BOM part of the original sketch was correct and is kept — without it Excel reads
+the file as ANSI and mangles Cyrillic.
 
 ---
 
@@ -191,7 +187,7 @@ Implemented: Останнє | Місяць | 3 місяці | Весь час.
 | P5 | chart.update() instead of destroy/recreate | Medium | High | Frontend |
 | P6 | Cache 10MB agenda JSON (Cache API/IndexedDB) | Medium | High | Frontend |
 | P7 | Build date-indexed Map for O(1) lookups | Low | High | Frontend |
-| P8 | Export filtered data to CSV | Medium | High | UX |
+| P8 | Export filtered data to CSV | ✅ Done 2026-08-05 | High | UX |
 | P9 | "Actively voted" vs "registered" heatmap toggle | Low | Medium | Political |
 | P10 | Exclude procedural votes from aggregates by default | Low | Medium | Political |
 | P11 | ARIA roles + canvas labels (accessibility) | Medium | Medium | UX |

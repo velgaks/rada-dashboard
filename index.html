@@ -314,6 +314,21 @@
       border-radius: 0;
       padding: 1.5rem 0 2rem;
     }
+    /* Shown in place of a blank canvas when faction data doesn't cover the range */
+    .chart-note {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 1rem;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .78rem;
+      line-height: 1.5;
+      pointer-events: none;
+    }
 
     /* ── Brush / zoom overview ── */
     .brush-outer {
@@ -354,6 +369,12 @@
     }
     /* ── Faction attendance heatmap ── */
     .faction-heatmap { font-family: 'IBM Plex Mono', monospace; font-size: .72rem; overflow-x: auto; }
+    .faction-lag {
+      color: var(--ua-yellow);
+      font-size: .7rem;
+      margin-bottom: .5rem;
+      opacity: .85;
+    }
     .heatmap-row { display: flex; align-items: center; gap: 2px; margin-bottom: 2px; }
     .heatmap-label {
       width: 76px; min-width: 76px; color: var(--muted); font-size: .68rem;
@@ -767,6 +788,7 @@
       <div class="section-title" style="margin-bottom:0">Голосування</div>
       <input type="text" id="search-input" class="search-input" placeholder="Пошук за назвою або номером…" />
       <span class="search-count" id="search-count"></span>
+      <button type="button" id="export-csv" class="preset-btn" style="margin-left:auto">Завантажити CSV</button>
     </div>
     <div class="table-wrap">
       <table>
@@ -900,24 +922,31 @@
 
   const INIT_LABELS = { 'Д': 'Депутат', 'П': 'Президент', 'К': 'КМУ', 'У': 'КМУ' };
 
-  async function loadData() {
+  const FETCH_TIMEOUT = 30000;
+
+  // Every fetch goes through here — an un-aborted request hangs Promise.all forever.
+  //
+  // The body MUST be consumed inside this function. fetch() resolves as soon as the
+  // response headers arrive, while the body is still streaming; if the helper returned
+  // the Response and let `controller` fall out of scope, garbage-collecting that
+  // controller aborts the in-flight body stream. That surfaces as an intermittent
+  // ERR_CONNECTION_RESET on the larger files, not as an AbortError.
+  async function fetchWithTimeout(url, parse, ms = FETCH_TIMEOUT) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    const opts = { signal: controller.signal };
-    let csvRes, jsonRes;
+    const timeout = setTimeout(() => controller.abort(), ms);
     try {
-      [csvRes, jsonRes] = await Promise.all([
-        fetch(cacheBust(CSV_URL), opts),
-        fetch(cacheBust(JSON_URL), opts),
-      ]);
+      const res = await fetch(cacheBust(url), { signal: controller.signal });
+      if (!res.ok) throw new Error(`${url.split('/').pop().split('?')[0]}: ${res.status}`);
+      return await parse(res);
     } finally { clearTimeout(timeout); }
+  }
+  const fetchText = (url, ms) => fetchWithTimeout(url, r => r.text(), ms);
+  const fetchJson = (url, ms) => fetchWithTimeout(url, r => r.json(), ms);
 
-    if (!csvRes.ok)  throw new Error(`CSV: ${csvRes.status}`);
-    if (!jsonRes.ok) throw new Error(`JSON: ${jsonRes.status}`);
-
+  async function loadData() {
     const [csvText, agendaArr] = await Promise.all([
-      csvRes.text(),
-      jsonRes.json(),
+      fetchText(CSV_URL),
+      fetchJson(JSON_URL),
     ]);
 
     const rows = parseCSV(csvText);
@@ -950,14 +979,13 @@
   let factionSummary = null;
 
   async function loadFactionData() {
-    const [summaryRes, dictRes] = await Promise.all([
-      fetch(cacheBust(FACTION_URL)),
-      fetch(cacheBust(FACTIONS_DICT_URL)),
+    const [summary, dict] = await Promise.all([
+      fetchJson(FACTION_URL),
+      // Names are cosmetic — a dict failure must not lose the summary
+      fetchJson(FACTIONS_DICT_URL).catch(() => null),
     ]);
-    if (!summaryRes.ok) throw new Error(`faction_summary.json: ${summaryRes.status}`);
-    factionSummary = await summaryRes.json();
-    if (dictRes.ok) {
-      const dict = await dictRes.json();
+    factionSummary = summary;
+    if (dict) {
       (dict.faction || []).forEach(f => {
         const name = f.name
           .replace(/^Фракція політичної партії\s*/i, '')
@@ -1035,16 +1063,49 @@
     forChartInstance.update('none');
   }
 
+  // ── Faction data availability ──────────────────────────────────────────────
+  // The date range comes from the live CSV, but faction data comes from the
+  // pre-built faction_summary.json, which can lag behind it. Say so explicitly
+  // rather than rendering an unexplained blank chart.
+  function factionDatesAvailable() {
+    return factionSummary ? Object.keys(factionSummary).sort() : [];
+  }
+
+  function factionDataNote() {
+    const all = factionDatesAvailable();
+    if (!all.length) return 'Фракційні дані недоступні';
+    return `Фракційні дані доступні по ${all[all.length - 1]}`;
+  }
+
+  // Overlays a message on a canvas's (position:relative) wrapper; pass a falsy
+  // message to clear it.
+  function setChartNote(canvasId, message) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !canvas.parentElement) return;
+    const wrap = canvas.parentElement;
+    let note = wrap.querySelector('.chart-note');
+    if (!message) { if (note) note.remove(); return; }
+    if (!note) {
+      note = document.createElement('div');
+      note.className = 'chart-note';
+      wrap.appendChild(note);
+    }
+    note.textContent = message;
+  }
+
   // ── Faction attendance heatmap ─────────────────────────────────────────────
   function renderFactionHeatmap(dateFrom, dateTo) {
     const container = document.getElementById('factionHeatmap');
-    if (!factionSummary) { container.innerHTML = ''; return; }
-    const allSorted = Object.keys(factionSummary).sort();
+    const allSorted = factionDatesAvailable();
+    if (!allSorted.length) {
+      container.innerHTML = `<span style="color:var(--muted);font-size:.8rem">${escapeHtml(factionDataNote())}</span>`;
+      return;
+    }
     const dates = dateFrom === dateTo
       ? allSorted.filter(d => d <= dateTo).slice(-15)
       : allSorted.filter(d => d >= dateFrom && d <= dateTo).slice(-15);
     if (!dates.length) {
-      container.innerHTML = '<span style="color:var(--muted);font-size:.8rem">Немає даних</span>';
+      container.innerHTML = `<span style="color:var(--muted);font-size:.8rem">${escapeHtml(factionDataNote())}</span>`;
       return;
     }
     const fids = [...new Set(dates.flatMap(d => Object.keys(factionSummary[d] || {})))]
@@ -1085,7 +1146,13 @@
       }).join('');
       return `<div class="heatmap-row"><div class="heatmap-label" title="${FACTION_NAMES[fid]||''}">${label}</div>${cells}</div>`;
     }).join('');
-    container.innerHTML = header + rows;
+    // The single-date view falls back to "last 15 available sessions", so it can render
+    // months-old data under a current-looking date range. Say so rather than imply the
+    // grid covers the selected period.
+    const lastAvailable = allSorted[allSorted.length - 1];
+    const lag = lastAvailable < dateTo
+      ? `<div class="faction-lag">${escapeHtml(factionDataNote())}</div>` : '';
+    container.innerHTML = lag + header + rows;
   }
 
   function renderForChart(data, dateFrom, dateTo) {
@@ -1384,8 +1451,17 @@
 
   // ── One-time brush chart initialiser (called after data load) ──
   function initBrushCharts(rows) {
-    const allDates = Object.keys(factionSummary).sort();
+    const allDates = factionDatesAvailable();
     _allFactionDates = allDates;
+
+    // No faction data at all — leave both brush charts as explained blanks
+    if (!allDates.length) {
+      setChartNote('factionTrendChart', factionDataNote());
+      setChartNote('coalitionChart', factionDataNote());
+      document.getElementById('ftBrushWrap').style.display = 'none';
+      document.getElementById('coalBrushWrap').style.display = 'none';
+      return;
+    }
 
     // Rank factions over ALL dates for consistent legends
     const factionIds = [...new Set(allDates.flatMap(d => Object.keys(factionSummary[d])))];
@@ -1465,15 +1541,16 @@
   }
 
   function renderFactionTrendChart(dateFrom, dateTo) {
-    const dates = Object.keys(factionSummary)
-      .filter(d => d >= dateFrom && d <= dateTo)
-      .sort();
+    const dates = factionDatesAvailable()
+      .filter(d => d >= dateFrom && d <= dateTo);
 
     if (dates.length < 2) {
       if (factionTrendInstance) factionTrendInstance.destroy();
       factionTrendInstance = null;
+      setChartNote('factionTrendChart', factionDataNote());
       return;
     }
+    setChartNote('factionTrendChart', null);
 
     // Use all-time top-5 ranking so legend stays consistent across brush positions
     const topFactions = (_allFtTopFactions || []).map(fid => ({ fid }));
@@ -1758,15 +1835,16 @@
 
   function renderCoalitionChart(rows, dateFrom, dateTo) {
     // Group dates into months
-    const datesInRange = Object.keys(factionSummary)
-      .filter(d => d >= dateFrom && d <= dateTo)
-      .sort();
+    const datesInRange = factionDatesAvailable()
+      .filter(d => d >= dateFrom && d <= dateTo);
 
     if (!datesInRange.length) {
       if (coalitionInstance) coalitionInstance.destroy();
       coalitionInstance = null;
+      setChartNote('coalitionChart', factionDataNote());
       return;
     }
+    setChartNote('coalitionChart', null);
 
     // Build monthly buckets: { '2025-12': [dates...], ... }
     const monthBuckets = {};
@@ -1879,9 +1957,11 @@
 
   // ── Virtual scroll state ──────────────────────────────────
   const BATCH_SIZE = 50;
-  let currentFilteredRows = [];
+  let currentFilteredRows = [];   // date range + initiator filter
+  let currentVisibleRows  = [];   // ...plus search and sort — i.e. what's on screen
   let currentAgendaMap    = null;
   let tableObserver       = null;
+  let sortCol = null, sortDir = 'asc';
 
   function makeRow(r, i, agendaMap) {
     const meta   = agendaMap.get(String(+r.id_question)) || { name: '—', number: '', init: '0', initLabel: '' };
@@ -1919,6 +1999,9 @@
   }
 
   function renderRows(rows) {
+    // Single funnel for every display path (range, initiator, search, sort),
+    // so the CSV export always matches exactly what the user is looking at.
+    currentVisibleRows = rows;
     if (tableObserver) { tableObserver.disconnect(); tableObserver = null; }
     const tbody = document.getElementById('vote-tbody');
     tbody.innerHTML = '';
@@ -1963,6 +2046,9 @@
     currentFilteredRows = rows.filter(r => r.date_agenda >= dateFrom && r.date_agenda <= dateTo);
     document.getElementById('search-input').value = '';
     document.getElementById('search-count').textContent = '';
+    // Reset sort with the search, so the header arrow never outlives the order it describes
+    sortCol = null; sortDir = 'asc';
+    document.querySelectorAll('th.sortable').forEach(t => t.classList.remove('asc', 'desc'));
     renderRows(currentFilteredRows);
   }
 
@@ -1972,6 +2058,54 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  // ── CSV export ────────────────────────────────────────────
+  const CSV_HEADERS = ['#', 'Дата', '№', 'Ініціатор', 'Назва питання',
+                       'За', 'Проти', 'Утрим', 'Не голос', 'Явка', 'Результат'];
+
+  // RFC 4180: double any quote, and wrap when the value contains a delimiter,
+  // a quote or a newline. Bill names routinely contain commas and quotes.
+  function csvCell(value) {
+    const s = String(value ?? '');
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  }
+
+  function buildCsv(rows, agendaMap) {
+    const lines = [CSV_HEADERS.join(',')];
+    rows.forEach((r, i) => {
+      const meta = (agendaMap && agendaMap.get(String(+r.id_question))) || {};
+      lines.push([
+        i + 1,
+        r.date_agenda,
+        meta.number || '',
+        meta.initLabel || '',
+        meta.name || '',
+        r.for, r.against, r.abstain, r.not_voting, r.presence,
+        r.voting_result === '1' ? 'Прийнято' : 'Провалено',
+      ].map(csvCell).join(','));
+    });
+    return lines.join('\r\n');
+  }
+
+  function exportCsv() {
+    const rows = currentVisibleRows;
+    if (!rows.length) return;
+    const from = document.getElementById('date-from').value;
+    const to   = document.getElementById('date-to').value;
+    // BOM — without it Excel reads the file as ANSI and mangles Cyrillic
+    const blob = new Blob(['\uFEFF' + buildCsv(rows, currentAgendaMap)],
+                          { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = from === to
+      ? `rada-golosuvannya_${from}.csv`
+      : `rada-golosuvannya_${from}_${to}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
   function showError(html) {
@@ -2022,19 +2156,26 @@
     }
 
     if (!fromCache) {
-      // No cache — blocking network fetch with spinner
+      // No cache — blocking network fetch with spinner.
+      // allSettled, not all: faction data is optional. The cards, attendance,
+      // pass-rate and initiator charts and the whole votes table come from the
+      // CSV alone and must still render if faction_summary.json is unreachable.
       overlay.style.display = 'flex';
       overlay.classList.remove('hidden');
-      try {
-        [{ rows, agendaMap }] = await Promise.all([
-          loadData(),
-          loadFactionData(),
-        ]);
-      } catch (err) {
-        console.error(err);
-        showError(buildErrorMessage(err));
+      const [coreRes, factionRes] = await Promise.allSettled([
+        loadData(),
+        loadFactionData(),
+      ]);
+      if (coreRes.status === 'rejected') {
+        console.error(coreRes.reason);
+        showError(buildErrorMessage(coreRes.reason));
         overlay.classList.add('hidden');
         return;
+      }
+      ({ rows, agendaMap } = coreRes.value);
+      if (factionRes.status === 'rejected') {
+        console.error('Faction data unavailable:', factionRes.reason);
+        factionSummary = null;
       }
     }
 
@@ -2068,7 +2209,7 @@
     }
     // Restore tab from URL
     if (urlTab === 'table') {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'tab-table'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'table'));
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-table'));
     }
 
@@ -2177,10 +2318,12 @@
       });
     });
 
-    // ── Table search ──
-    function applySearch() {
+    // ── Table search + sorting ──
+    // Both go through one pipeline: search narrows, sort orders. Applying them
+    // independently made each silently discard the other.
+    function applyTableView() {
       const q = document.getElementById('search-input').value.toLowerCase().trim();
-      const subset = q
+      let subset = q
         ? currentFilteredRows.filter(r => {
             const meta = currentAgendaMap.get(String(+r.id_question));
             if (!meta) return false;
@@ -2189,13 +2332,22 @@
         : currentFilteredRows;
       document.getElementById('search-count').textContent =
         q ? `${subset.length} з ${currentFilteredRows.length}` : '';
+
+      if (sortCol) {
+        subset = [...subset].sort((a, b) => {
+          let va, vb;
+          if (sortCol === 'date') { va = a.date_agenda; vb = b.date_agenda; }
+          else if (sortCol === 'result') { va = +a.voting_result; vb = +b.voting_result; }
+          else { va = +a[sortCol]; vb = +b[sortCol]; }
+          return sortDir === 'asc' ? (va < vb ? -1 : va > vb ? 1 : 0) : (va > vb ? -1 : va < vb ? 1 : 0);
+        });
+      }
       renderRows(subset);
     }
 
-    document.getElementById('search-input').addEventListener('input', applySearch);
+    document.getElementById('search-input').addEventListener('input', applyTableView);
+    document.getElementById('export-csv').addEventListener('click', exportCsv);
 
-    // ── Table sorting ──
-    let sortCol = null, sortDir = 'asc';
     document.querySelectorAll('th.sortable').forEach(th => {
       th.addEventListener('click', () => {
         const col = th.dataset.sort;
@@ -2203,14 +2355,7 @@
         else { sortCol = col; sortDir = 'asc'; }
         document.querySelectorAll('th.sortable').forEach(t => t.classList.remove('asc', 'desc'));
         th.classList.add(sortDir);
-        const sorted = [...currentFilteredRows].sort((a, b) => {
-          let va, vb;
-          if (col === 'date') { va = a.date_agenda; vb = b.date_agenda; }
-          else if (col === 'result') { va = +a.voting_result; vb = +b.voting_result; }
-          else { va = +a[col]; vb = +b[col]; }
-          return sortDir === 'asc' ? (va < vb ? -1 : va > vb ? 1 : 0) : (va > vb ? -1 : va < vb ? 1 : 0);
-        });
-        renderRows(sorted);
+        applyTableView();
       });
     });
 
@@ -2222,11 +2367,17 @@
     if (fromCache) {
       const refreshBtn = document.querySelector('.refresh-btn');
       if (refreshBtn) refreshBtn.classList.add('spinning');
-      Promise.all([loadData(), loadFactionData()])
-        .then(([fresh]) => {
+      const factionDateBefore = factionDatesAvailable().pop() || '';
+      // allSettled so a faction failure doesn't discard freshly fetched CSV data
+      Promise.allSettled([loadData(), loadFactionData()])
+        .then(([coreRes, factionRes]) => {
           if (refreshBtn) refreshBtn.classList.remove('spinning');
+          if (factionRes.status === 'rejected') console.error('Faction refresh failed:', factionRes.reason);
+          if (coreRes.status === 'rejected') { console.error(coreRes.reason); return; }
+          const fresh = coreRes.value;
           const changed = fresh.rows.length !== rows.length ||
-            fresh.rows[0]?.date_agenda !== rows[0]?.date_agenda;
+            fresh.rows[0]?.date_agenda !== rows[0]?.date_agenda ||
+            (factionDatesAvailable().pop() || '') !== factionDateBefore;
           if (cacheAgeEl) cacheAgeEl.textContent = '· оновлено';
           if (changed) {
             rows = fresh.rows;
@@ -2236,8 +2387,7 @@
             renderAll(inputFrom.value, inputTo.value);
             initBrushCharts(rows);
           }
-        })
-        .catch(() => { if (refreshBtn) refreshBtn.classList.remove('spinning'); });
+        });
     }
   }
 
@@ -2263,7 +2413,7 @@
       document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
       // Persist tab in URL
       const sp = new URLSearchParams(location.search);
-      if (btn.dataset.tab === 'tab-table') sp.set('tab', 'table'); else sp.delete('tab');
+      if (btn.dataset.tab === 'table') sp.set('tab', 'table'); else sp.delete('tab');
       history.replaceState(null, '', '?' + sp.toString());
       // Resize charts when returning to the overview tab
       if (btn.dataset.tab === 'charts') {

@@ -103,11 +103,113 @@ if (location.protocol === 'file:') {
 
 ---
 
+## Error #8 — Local working copy had no `.git` at all
+
+**Date:** 2026-08-05
+**Context:** Session opened with "does the dashboard still work / is it updated?". The project
+folder had moved to `C:\Users\laptop\Documents\claude projects\VR dashboard` and had **no `.git`
+directory** and no `.github/` — so nothing could be pushed, and `faction_summary.json` was frozen
+at 2026-03-26 while the deployed site was at 2026-07-16.
+**Root cause:** Folder was copied rather than cloned at some point, dropping `.git`.
+**Solution:** Re-attached without touching the working tree:
+```bash
+git init && git remote add origin https://github.com/velgaks/rada-dashboard.git
+git fetch origin main
+git reset --mixed origin/main    # attaches HEAD + index, leaves files alone
+git status                       # review BEFORE restoring anything
+git checkout -- <specific paths>
+```
+`git diff --ignore-cr-at-eol --stat` proved `index.html` and `NEXT_IMPROVEMENTS.md` differed
+**only** by CRLF vs LF — no content drift, nothing to rescue. Set `core.autocrlf false` so the
+tree matches the LF-normalised repo.
+**Lesson:** `reset --mixed` + selective `checkout` is the safe way to re-attach an orphaned
+working copy. Never blanket `git checkout -- .` before reading the diff.
+
+---
+
+## Error #9 — Mistook parliamentary recess for a broken data pipeline
+
+**Date:** 2026-08-05
+**Context:** Dashboard data ended 2026-07-16, three weeks before the session date. Initial read
+was "the daily updater has died."
+**Root cause:** It hadn't. GitHub Actions had run successfully every day (run #134 on
+2026-08-04). The *upstream* file `plenary_result_event-skl9.csv` on data.rada.gov.ua itself
+carries `Last-Modified: Thu, 16 Jul 2026` — the Rada's last sitting before summer recess. CI was
+correctly finding nothing new to commit.
+**Compounding trap:** GitHub Pages reports `Last-Modified` as the **deploy** timestamp, not the
+file's real change time. Live `index.html` showed 17 Jul despite last changing 31 Mar, because
+the daily data commit re-deploys every file.
+**Lesson:** To judge freshness, compare against the **upstream source's** `Last-Modified` and the
+Actions run history — never against Pages headers, and never against the dashboard alone.
+Recess and breakage look identical from the front end.
+
+---
+
+## Error #10 — Invisible U+FEFF literal in source instead of a `\uFEFF` escape
+
+**Date:** 2026-08-05
+**Context:** Writing the CSV export, the BOM prefix landed in `index.html` as a real invisible
+U+FEFF character inside the string literal rather than the escape sequence.
+**Why it matters:** It *worked*, but an invisible character in source is silently destroyed by
+editors, linters and copy-paste — and it's undiagnosable by eye.
+**Root cause:** The escape sequence was normalised into the literal character in transit; an
+Edit-tool replacement then no-op'd because old and new strings were byte-identical.
+**Solution:** Build the replacement from character codes so nothing can normalise it:
+```powershell
+$bs = [string][char]0x5C
+$replacement = "['" + $bs + "uFEFF' + buildCsv"
+```
+Then verify by codepoint, not by eye:
+```powershell
+$line.ToCharArray() | ForEach-Object { "U+{0:X4}" -f [int]$_ }
+```
+**Lesson:** After writing any non-ASCII control character to source, verify by codepoint dump.
+Scan the whole file for stray U+FEFF outside position 0.
+
+---
+
+## Error #11 — `py -m http.server` truncates `faction_summary.json` (ERR_CONNECTION_RESET)
+
+**Date:** 2026-08-05
+**Context:** Verifying locally on `http://localhost:5174`. `faction_summary.json` (275 KB)
+intermittently failed to load; the dashboard fell back to "Фракційні дані недоступні".
+**Symptoms:**
+- Server log says `"GET /faction_summary.json HTTP/1.1" 200 -` — it thinks it succeeded
+- Browser DevTools: `200 OK [FAILED: net::ERR_CONNECTION_RESET]`
+- `curl` reproduces it: `200 261120` with **exit 56** (expected 274940 bytes) — truncated
+- Smaller files (`index.html` 94 KB, `CLAUDE.md` 2.7 KB) always fine
+- Non-deterministic: often succeeds, fails under concurrency
+
+**Root cause:** Python 3.14.6's `http.server` on this Windows machine truncates larger responses.
+Not a dashboard bug — GitHub Pages serves the same file perfectly.
+
+**Why it's a trap:** it looks exactly like a broken faction-data code path. Two things ruled
+that out: (a) the unmodified committed `index.html` failed the same way on the same server,
+(b) `curl` failed too, with no browser involved.
+
+**Workaround:** serve with Node instead (Node *is* installed). A ~30-line
+`http.createServer` + `createReadStream().pipe(res)` script on port 5175 served the file at full
+size 5/5 times. Keep such a script in the scratchpad, not the repo.
+
+**Lesson:** when a local fetch fails, test the *server* with `curl` before suspecting the page.
+`curl -w "%{http_code} %{size_download}"` and comparing against the on-disk byte count catches
+truncation that a `200` status hides.
+
+---
+
 ## Patterns & Lessons Learned
 
 | Lesson | Detail |
 |--------|--------|
-| No Node/npx on this machine | Use `py` launcher (Windows Python launcher) in launch.json |
+| ~~No Node/npx on this machine~~ | **OBSOLETE (2026-08-05):** Node *is* installed at `C:\Program Files\nodejs\node.exe`. Still use `py` in launch.json for the static server, but `node --check` is available for syntax-checking the extracted inline script. |
+| Syntax-check the inline script before browser testing | Extract the `<script>` body with a regex and run `node --check` on it. Catches brace/paren errors in seconds instead of via a blank page. |
+| Judge data freshness upstream, not downstream | Compare against the source's `Last-Modified` + Actions run history. Pages headers show deploy time; the dashboard alone can't distinguish recess from breakage. |
+| Re-attach orphaned repos with `reset --mixed` | `git init` → `remote add` → `fetch` → `reset --mixed origin/main` leaves the working tree untouched so you can read the diff before restoring. Use `git diff --ignore-cr-at-eol` to separate real drift from line-ending noise. |
+| Verify non-ASCII source characters by codepoint | An invisible U+FEFF renders identically to nothing. Dump codepoints rather than trusting your eyes. |
+| Test the server with `curl` before blaming the page | `curl -w "%{http_code} %{size_download}"` vs the on-disk size catches truncation that a `200` hides. `py -m http.server` truncates the 275 KB faction JSON on this machine (Error #11). |
+| Diff against the committed baseline to attribute a bug | `git show HEAD:index.html > _baseline.html`, serve both, compare. Proved the local-server truncation was pre-existing *and* separately proved the AbortController-GC bug was mine. |
+| Never return a `Response` from a fetch helper | `fetch()` resolves on headers; the body is still streaming. If the helper returns and its `AbortController` gets GC'd, the body stream is aborted — surfacing as `ERR_CONNECTION_RESET`, not `AbortError`. Consume the body inside the helper. |
+| One funnel for derived view state | Search and sort each rebuilt the row list independently and silently discarded the other. Routing both through one `applyTableView()` and recording the result in `renderRows()` fixed the bug and made CSV export correct for free. |
 | Windows PATH `python` → Store stub | Use `py` instead of `python` in launch.json `runtimeExecutable` |
 | `file://` URLs unreliable in MCP Chrome | Always prefer `http://localhost` with a running server |
 | `file://` blocks cross-origin fetch | Detect with `location.protocol === 'file:'` and show helpful error |
