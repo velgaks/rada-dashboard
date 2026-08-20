@@ -139,6 +139,7 @@
       letter-spacing: -.025em;
       line-height: 1.15;
     }
+    .header-title { min-width: 0; max-width: 100%; }
     .header-title p {
       font-size: .75rem;
       color: var(--muted);
@@ -218,6 +219,7 @@
     }
     .card-value.green { color: var(--green); }
     .card-value.red   { color: var(--red); }
+    .card-sub.warning { color: var(--ua-yellow); }
 
     /* ── Section titles ── */
     .section-title {
@@ -300,7 +302,7 @@
       gap: 0 2.5rem;
       margin-bottom: 1rem;
     }
-    .charts-grid .chart-card { border-bottom: none; padding-bottom: 1.5rem; }
+    .charts-grid .chart-card { border-bottom: none; padding-bottom: 1.5rem; min-width: 0; }
     @media (max-width: 900px) {
       .charts-grid { grid-template-columns: 1fr 1fr; gap: 0 2rem; }
     }
@@ -313,6 +315,8 @@
       border-bottom: 1px solid var(--border);
       border-radius: 0;
       padding: 1.5rem 0 2rem;
+      min-width: 0;
+      max-width: 100%;
     }
     /* Shown in place of a blank canvas when faction data doesn't cover the range */
     .chart-note {
@@ -366,9 +370,32 @@
     .chart-wrap {
       position: relative;
       height: 240px;
+      min-width: 0;
     }
+    .chart-wrap canvas { max-width: 100% !important; }
+    .scope-badge {
+      font-size: .65rem;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      font-style: normal;
+      font-weight: 400;
+      background: rgba(37,45,61,.5);
+      padding: .15rem .4rem;
+      border-radius: 2px;
+      margin-left: .35rem;
+    }
+    .chart-caption {
+      margin-top: .9rem;
+      color: var(--muted);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: .67rem;
+      line-height: 1.45;
+    }
+    .chart-caption .credit { color: #a8b1c1; font-weight: 600; }
+    .chart-caption a { color: #a8b1c1; text-decoration: none; }
+    .chart-caption a:hover { text-decoration: underline; }
     /* ── Faction attendance heatmap ── */
-    .faction-heatmap { font-family: 'IBM Plex Mono', monospace; font-size: .72rem; overflow-x: auto; }
+    .faction-heatmap { font-family: 'IBM Plex Mono', monospace; font-size: .72rem; overflow-x: auto; max-width: 100%; }
     .faction-lag {
       color: var(--ua-yellow);
       font-size: .7rem;
@@ -381,12 +408,39 @@
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       text-align: right; padding-right: 6px;
     }
-    .heatmap-cell { width: 14px; height: 18px; border-radius: 2px; flex-shrink: 0; cursor: default; }
+    .heatmap-cell {
+      width: 14px; height: 18px; border-radius: 2px; flex-shrink: 0; cursor: default;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+    }
+    .heatmap-cell:focus-visible { outline: 2px solid var(--ua-yellow); outline-offset: 1px; }
     .heatmap-header { display: flex; align-items: flex-end; gap: 2px; margin-bottom: 4px; padding-left: 82px; }
     .heatmap-col-label {
       width: 14px; min-width: 14px; font-size: .6rem; color: var(--muted);
       writing-mode: vertical-rl; text-orientation: mixed; transform: rotate(180deg);
       height: 36px; overflow: hidden;
+    }
+    .heatmap-scale-wrap {
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+      margin: .65rem 0 0 82px;
+      color: var(--muted);
+      font-size: .62rem;
+      white-space: nowrap;
+    }
+    .heatmap-scale {
+      width: 116px;
+      height: 7px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #1b2638 0%, #86b6ef 100%);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.2);
+    }
+    .heatmap-status {
+      min-height: 1.1rem;
+      margin: .45rem 0 0 82px;
+      color: var(--text-secondary);
+      font-size: .68rem;
+      line-height: 1.4;
     }
 
     /* ── Table section ── */
@@ -462,6 +516,17 @@
     .metric-btn.active { background: rgba(74,144,217,.25); color: var(--text); }
     .metric-btn.active[data-metric="against"] { background: rgba(239,68,68,.25); color: var(--red); }
 
+    @media (max-width: 600px) {
+      .section-title { align-items: flex-start; flex-wrap: wrap; }
+      .scope-badge { margin-left: 0; }
+      .chart-caption { font-size: .64rem; }
+      .heatmap-scale-wrap { margin-left: 82px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+
     .table-wrap {
       overflow-x: auto;
       border-radius: 0;
@@ -535,6 +600,8 @@
       align-items: center;
       gap: .4rem;
       flex-basis: 100%;
+      flex-wrap: wrap;
+      max-width: 100%;
     }
     .init-filter-label {
       color: var(--muted);
@@ -589,6 +656,7 @@
 
     /* ── Responsive ── */
     @media (max-width: 600px) {
+      .header-title { width: 100%; }
       .header-title h1 { font-size: 1.4rem; }
       .card-value { font-size: 1.7rem; }
       .cards { grid-template-columns: 1fr 1fr; }
@@ -671,20 +739,27 @@
         <div class="card-sub">від присутніх</div>
       </div>
       <div class="card">
-        <div class="card-label">Макс. присутніх</div>
-        <div class="card-value" id="m-presence">—</div>
-        <div class="card-sub">макс. зареєстрованих за сесію</div>
+        <div class="card-label">Достатня активність</div>
+        <div class="card-value" id="m-capacity">—</div>
+        <div class="card-sub" id="m-capacity-sub">≥226 активних · без поправок</div>
       </div>
     </div>
 
     <!-- Charts -->
     <div class="charts-grid">
       <div class="chart-card">
-        <div class="section-title" id="attendance-title"><span class="title-text">Явка по датах (останні 15 засідань)</span>
-          <button class="info-btn" tabindex="0">i<div class="info-popup">Кількість депутатів, що зареєструвались на засіданні (зелений — є кворум ≥226, червоний — немає). Пунктирна лінія — мінімум 226 для кворуму.</div></button>
+        <div class="section-title" id="capacity-trend-title">
+          <span class="title-text">Після 2023 року Раді дедалі частіше бракує 226 активних депутатів</span>
+          <span class="scope-badge">весь період · всі ініціатори</span>
+          <button class="info-btn" tabindex="0">i<div class="info-popup">Частка поіменних голосувань, у яких щонайменше 226 депутатів натиснули «за», «проти» або «утримався». Поправки й електронні реєстрації виключено; сигнальні голосування включено.</div></button>
         </div>
         <div class="chart-wrap">
-          <canvas id="attendanceChart"></canvas>
+          <canvas id="capacityTrendChart" role="img" aria-label="Місячний тренд частки голосувань із щонайменше 226 активними депутатами"></canvas>
+        </div>
+        <div class="chart-caption" id="capacity-caption">
+          <div>Поправки й реєстрації виключено; сигнальні голосування включено.</div>
+          <div><span class="credit">Графік: Valentyn Hatsko, TG: @gorbach_squad.</span> Джерело: data.rada.gov.ua, <span id="capacity-source-date">дата уточнюється</span></div>
+          <div>Дані, код і метод: <a href="https://github.com/velgaks/rada-dashboard" target="_blank" rel="noopener">github.com/velgaks/rada-dashboard</a></div>
         </div>
       </div>
       <div class="chart-card">
@@ -696,11 +771,16 @@
         </div>
       </div>
       <div class="chart-card">
-        <div class="section-title">
-          <span class="title-text">Явка по фракціях</span><span class="unfiltered-badge">всі ініціатори</span>
-          <button class="info-btn" tabindex="0">i<div class="info-popup">Частка присутніх депутатів фракції на кожному засіданні (присутні = за + проти + утримались + не голосували). Показано останні 15 засідань в діапазоні. Зелений — висока явка, червоний — низька.</div></button>
+        <div class="section-title" id="faction-heatmap-title">
+          <span class="title-text">Активна участь по фракціях</span><span class="unfiltered-badge">всі ініціатори</span>
+          <div class="metric-toggle" id="heatmapMetricToggle" role="group" aria-label="Показник участі" style="margin-left:auto">
+            <button class="metric-btn active" data-heatmap-metric="active" aria-pressed="true">Активні</button>
+            <button class="metric-btn" data-heatmap-metric="present" aria-pressed="false">Присутні</button>
+          </div>
+          <button class="info-btn" tabindex="0">i<div class="info-popup">Активні = «за» + «проти» + «утримались». Присутні додатково включають тих, хто не голосував. Знаменник включає також відсутніх; колір показує безперервну шкалу 0–100%.</div></button>
         </div>
         <div id="factionHeatmap" class="faction-heatmap"></div>
+        <div id="heatmapStatus" class="heatmap-status" role="status" aria-live="polite"></div>
       </div>
     </div>
 
@@ -818,9 +898,11 @@
   const BASE     = 'https://data.rada.gov.ua/ogd/zal/ppz/skl9';
   const CSV_URL  = `${BASE}/plenary_result_event-skl9.csv`;
   const JSON_URL = `${BASE}/plenary_agenda-skl9.json`;
+  const EVENTS_CSV_URL = `${BASE}/plenary_event_question-skl9.csv`;
 
   const QUORUM          = 226;
   const FACTION_URL     = 'faction_summary.json';
+  const VOTE_FLAGS_URL  = 'vote_event_flags.json';
   const FACTIONS_DICT_URL = `${BASE}/dict/factions.json`;
 
   // Populated at load time from the official API dict
@@ -847,14 +929,13 @@
   function getMetrics(rows, dateFrom, dateTo) {
     const filtered = rows.filter(r => r.date_agenda >= dateFrom && r.date_agenda <= dateTo);
     if (!filtered.length) return null;
-    const presence = Math.max(...filtered.map(r => +r.presence || 0));
     const passed   = filtered.filter(r => r.voting_result === '1').length;
     const failed   = filtered.filter(r => r.voting_result === '0').length;
     const avgFor   = filtered.reduce((acc, r) => {
       const p = +r.presence;
       return acc + (p > 0 ? (+r.for / p) * 100 : 0);
     }, 0) / filtered.length;
-    return { presence, passed, failed, avgFor };
+    return { passed, failed, avgFor };
   }
 
   function getChartDates(rows, dateFrom, dateTo) {
@@ -867,14 +948,6 @@
     return uniqueDates.filter(d => d >= dateFrom && d <= dateTo).reverse();
   }
 
-  function getChartData(rows, dateFrom, dateTo) {
-    return getChartDates(rows, dateFrom, dateTo).map(date => {
-      const filtered = rows.filter(r => r.date_agenda === date);
-      const avg = filtered.reduce((s, r) => s + (+r.presence || 0), 0) / filtered.length;
-      return { date, avg };
-    });
-  }
-
   function getChartDataFor(rows, dateFrom, dateTo) {
     return getChartDates(rows, dateFrom, dateTo).map(date => {
       const filtered = rows.filter(r => r.date_agenda === date);
@@ -884,8 +957,11 @@
   }
 
   // ── Cache (localStorage, stale-while-revalidate) ─────────
-  const CACHE_VER = 1;
-  const CK = { csv: 'vrd_csv', agenda: 'vrd_agenda', facSum: 'vrd_facSum', facDict: 'vrd_facDict', meta: 'vrd_meta' };
+  const CACHE_VER = 2;
+  const CK = {
+    csv: 'vrd_csv', agenda: 'vrd_agenda', facSum: 'vrd_facSum', facDict: 'vrd_facDict',
+    voteFlags: 'vrd_voteFlags', meta: 'vrd_meta',
+  };
   function cacheSet(k, v) {
     try { localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); }
     catch { cacheClear(); }
@@ -911,6 +987,45 @@
     factionSummary = sum;
     if (dict) Object.assign(FACTION_NAMES, dict);
     return factionSummary;
+  }
+
+  let voteEventFlags = null;
+  let namedVoteIds = new Set();
+  let amendmentVoteIds = new Set();
+
+  function hydrateVoteEventFlags(payload) {
+    const validIdArray = values => Array.isArray(values) &&
+      values.every(id => Number.isInteger(id) && id >= 0) &&
+      new Set(values).size === values.length;
+    if (!payload || payload.meta?.schema_version !== 1 ||
+        !validIdArray(payload.named_vote_ids) || !validIdArray(payload.amendment_ids)) {
+      throw new Error('Некоректний формат vote_event_flags.json');
+    }
+    const named = new Set(payload.named_vote_ids);
+    if (!payload.amendment_ids.every(id => named.has(id))) {
+      throw new Error('ID поправок відсутні серед поіменних голосувань');
+    }
+    voteEventFlags = payload;
+    namedVoteIds = named;
+    amendmentVoteIds = new Set(payload.amendment_ids);
+    return voteEventFlags;
+  }
+
+  function voteFlagsRevision(payload) {
+    const meta = payload?.meta;
+    if (!meta) return '';
+    return [meta.source_last_modified, meta.max_date, meta.counts?.named_votes,
+      meta.counts?.amendments].join('|');
+  }
+
+  function loadVoteEventFlagsFromCache() {
+    const payload = cacheGet(CK.voteFlags);
+    if (!payload) return null;
+    try { return hydrateVoteEventFlags(payload); }
+    catch {
+      localStorage.removeItem(CK.voteFlags);
+      return null;
+    }
   }
 
   // ── Data loading ──────────────────────────────────────────
@@ -1003,18 +1118,149 @@
     return factionSummary;
   }
 
-
-  // ── Rendering ─────────────────────────────────────────────
-  function renderCards(metrics) {
-    if (!metrics) return;
-    document.getElementById('m-presence').textContent = metrics.presence;
-    document.getElementById('m-passed').textContent   = metrics.passed;
-    document.getElementById('m-failed').textContent   = metrics.failed;
-    document.getElementById('m-avg-for').textContent  = metrics.avgFor.toFixed(1) + '%';
+  async function loadVoteEventFlags() {
+    let payload;
+    try {
+      payload = await fetchJson(VOTE_FLAGS_URL);
+      hydrateVoteEventFlags(payload);
+    } catch {
+      // Some file/embedded previews expose index.html without its sibling assets.
+      // Fall back to the same official CSV used by the Python preprocessor so the
+      // analytical chart still works; the compact JSON remains the normal fast path.
+      const source = await fetchWithTimeout(EVENTS_CSV_URL, async response => ({
+        text: await response.text(),
+        lastModified: response.headers.get('last-modified') || '',
+      }), 90000);
+      payload = buildVoteEventFlagsFromCsv(source.text, source.lastModified);
+      hydrateVoteEventFlags(payload);
+    }
+    cacheSet(CK.voteFlags, payload);
+    return voteEventFlags;
   }
 
-  let chartInstance    = null;
-  let chartData        = null;
+  function forEachCsvRecord(text, visit) {
+    let record = [], field = '', quoted = false;
+    const emit = () => {
+      record.push(field);
+      if (record.length > 1 || record[0] !== '') visit(record);
+      record = [];
+      field = '';
+    };
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      if (char === '"') {
+        if (quoted && text[i + 1] === '"') { field += '"'; i += 1; }
+        else quoted = !quoted;
+      } else if (char === ',' && !quoted) {
+        record.push(field);
+        field = '';
+      } else if ((char === '\n' || char === '\r') && !quoted) {
+        emit();
+        if (char === '\r' && text[i + 1] === '\n') i += 1;
+      } else {
+        field += char;
+      }
+    }
+    if (field || record.length) emit();
+  }
+
+  function buildVoteEventFlagsFromCsv(text, sourceLastModified = '') {
+    let columns = null, sourceRows = 0, registrations = 0;
+    let minDate = '', maxDate = '';
+    const named = new Set(), amendments = new Set();
+    const amendmentPattern = /(^|[^А-Яа-яІіЇїЄєҐґ])поправ[А-Яа-яІіЇїЄєҐґ'’\-]*\s*№\s*\d+/i;
+
+    forEachCsvRecord(text, record => {
+      if (!columns) {
+        const headers = record.map((value, index) => index === 0 ? value.replace(/^\uFEFF/, '') : value);
+        columns = Object.fromEntries(headers.map((name, index) => [name, index]));
+        const required = ['date_agenda', 'type_event', 'name_event', 'id_event'];
+        if (required.some(name => columns[name] === undefined)) {
+          throw new Error('Офіційний перелік подій має неочікуваний формат');
+        }
+        return;
+      }
+
+      sourceRows += 1;
+      const eventType = (record[columns.type_event] || '').trim();
+      if (eventType === '1') { registrations += 1; return; }
+      const idText = (record[columns.id_event] || '').trim();
+      if (eventType !== '0' || !/^\d+$/.test(idText)) return;
+
+      const id = Number(idText);
+      named.add(id);
+      const date = (record[columns.date_agenda] || '').trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        if (!minDate || date < minDate) minDate = date;
+        if (!maxDate || date > maxDate) maxDate = date;
+      }
+      if (amendmentPattern.test(record[columns.name_event] || '')) amendments.add(id);
+    });
+
+    const namedVoteIds = [...named].sort((a, b) => a - b);
+    const amendmentIds = [...amendments].sort((a, b) => a - b);
+    return {
+      meta: {
+        schema_version: 1,
+        retrieved_at: new Date().toISOString(),
+        source_last_modified: sourceLastModified,
+        min_date: minDate || null,
+        max_date: maxDate || null,
+        counts: {
+          rows: sourceRows,
+          named_votes: namedVoteIds.length,
+          amendments: amendmentIds.length,
+          registrations,
+        },
+      },
+      named_vote_ids: namedVoteIds,
+      amendment_ids: amendmentIds,
+    };
+  }
+
+
+  // ── Rendering ─────────────────────────────────────────────
+  function activeVotes(row) {
+    return (+row.for || 0) + (+row.against || 0) + (+row.abstain || 0);
+  }
+
+  function isCapacityVote(row) {
+    const id = Number(row.id_event);
+    return namedVoteIds.has(id) && !amendmentVoteIds.has(id);
+  }
+
+  function getCapacityMetric(rows, dateFrom, dateTo) {
+    if (!voteEventFlags) return { unavailable: true, reason: 'класифікація голосувань недоступна' };
+    const maxClassified = voteEventFlags.meta.max_date || '';
+    const inRange = rows.filter(r => r.date_agenda >= dateFrom && r.date_agenda <= dateTo);
+    if (maxClassified && inRange.some(r => r.date_agenda > maxClassified)) {
+      return { unavailable: true, reason: `класифікація доступна по ${maxClassified}` };
+    }
+    const eligible = inRange.filter(isCapacityVote);
+    if (!eligible.length) return { unavailable: true, reason: 'немає релевантних голосувань' };
+    const sufficient = eligible.filter(r => activeVotes(r) >= QUORUM).length;
+    return { total: eligible.length, sufficient, share: sufficient / eligible.length * 100 };
+  }
+
+  function renderCards(metrics, capacity) {
+    document.getElementById('m-passed').textContent  = metrics ? metrics.passed : '—';
+    document.getElementById('m-failed').textContent  = metrics ? metrics.failed : '—';
+    document.getElementById('m-avg-for').textContent = metrics ? metrics.avgFor.toFixed(1) + '%' : '—';
+
+    const value = document.getElementById('m-capacity');
+    const sub = document.getElementById('m-capacity-sub');
+    if (!capacity || capacity.unavailable) {
+      value.textContent = '—';
+      sub.textContent = capacity?.reason || 'класифікація голосувань недоступна';
+      sub.classList.add('warning');
+      return;
+    }
+    value.textContent = capacity.share.toFixed(1) + '%';
+    sub.textContent = `${capacity.sufficient} із ${capacity.total} голосувань`;
+    sub.classList.remove('warning');
+  }
+
+  let capacityTrendInstance = null;
   let forChartInstance = null;
   let forChartData     = null;
   let donutInstance    = null; // kept for tab-resize array compat, no longer used
@@ -1035,22 +1281,10 @@
       ctx.setLineDash([]);
       ctx.fillStyle = 'rgba(239,68,68,0.85)';
       ctx.font = '11px "IBM Plex Mono", monospace';
-      ctx.fillText('226 (кворум)', chartArea.right - 102, y - 5);
+      ctx.fillText('226 голосів', chartArea.right - 82, y - 5);
       ctx.restore();
     },
   };
-
-  function highlightChartBars(dateFrom, dateTo) {
-    if (!chartInstance || !chartData) return;
-    const ds = chartInstance.data.datasets[0];
-    ds.backgroundColor = chartData.map(d => {
-      const inRange = d.date >= dateFrom && d.date <= dateTo;
-      const rgb = Math.round(d.avg) >= QUORUM ? '34,197,94' : '239,68,68';
-      return inRange ? `rgba(${rgb},1)` : `rgba(${rgb},0.3)`;
-    });
-    ds.borderWidth = chartData.map(d => d.date >= dateFrom && d.date <= dateTo ? 2.5 : 1);
-    chartInstance.update('none');
-  }
 
   function highlightForChartBars(dateFrom, dateTo) {
     if (!forChartInstance || !forChartData) return;
@@ -1093,9 +1327,21 @@
     note.textContent = message;
   }
 
-  // ── Faction attendance heatmap ─────────────────────────────────────────────
+  // ── Faction participation heatmap ──────────────────────────────────────────
+  let _heatmapMetric = 'active'; // 'active' | 'present'
+
+  function mixHexColor(from, to, t) {
+    const clamp = Math.max(0, Math.min(1, t));
+    const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+    const a = rgb(from), b = rgb(to);
+    return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * clamp).toString(16).padStart(2, '0')).join('');
+  }
+
   function renderFactionHeatmap(dateFrom, dateTo) {
     const container = document.getElementById('factionHeatmap');
+    const activeMode = _heatmapMetric === 'active';
+    document.querySelector('#faction-heatmap-title .title-text').textContent =
+      activeMode ? 'Активна участь по фракціях' : 'Присутність по фракціях';
     const allSorted = factionDatesAvailable();
     if (!allSorted.length) {
       container.innerHTML = `<span style="color:var(--muted);font-size:.8rem">${escapeHtml(factionDataNote())}</span>`;
@@ -1112,17 +1358,13 @@
       .sort((a, b) => {
         const vol = fid => dates.reduce((s, d) => {
           const v = factionSummary[d]?.[fid]; if (!v) return s;
-          return s + v.for + v.against + v.abstain + v.not_voting;
+          return s + v.for + v.against + v.abstain + v.not_voting + v.absent;
         }, 0);
         return vol(b) - vol(a);
       });
     function cellColor(rate) {
       if (rate === null) return 'rgba(37,45,61,0.4)';
-      if (rate >= .90) return '#1d4ed8';
-      if (rate >= .75) return '#3b82f6';
-      if (rate >= .60) return '#60a5fa';
-      if (rate >= .40) return '#f59e0b';
-      return '#dc2626';
+      return mixHexColor('#1b2638', '#86b6ef', rate);
     }
     const header = '<div class="heatmap-header">' +
       dates.map(d => { const [,m,day]=d.split('-'); return `<div class="heatmap-col-label" title="${d}">${day}.${m}</div>`; }).join('') +
@@ -1132,17 +1374,22 @@
         .replace(/^(Всеукраїнське|Партія|Депутатська)\s+/i, '').slice(0, 11);
       const cells = dates.map(d => {
         const v = factionSummary[d]?.[fid];
-        if (!v) return '<div class="heatmap-cell" style="background:rgba(37,45,61,0.3)" title="немає даних"></div>';
-        const present = v.for + v.against + v.abstain + v.not_voting;
+        if (!v) return '<div class="heatmap-cell" style="background:rgba(37,45,61,0.3)" aria-label="Немає даних"></div>';
+        const active = v.for + v.against + v.abstain;
+        const present = active + v.not_voting;
         const total = present + v.absent;
-        const rate = total > 0 ? present / total : null;
+        const numerator = activeMode ? active : present;
+        const rate = total > 0 ? numerator / total : null;
         const pct = rate !== null ? Math.round(rate * 100) : '—';
         const [,m,day] = d.split('-');
         const fname = FACTION_NAMES[fid] || `Фракція ${fid}`;
         const n = _billCountByDate[d] || 1;
-        const avgPresent = Math.round(present / n);
-        const avgTotal   = Math.round(total   / n);
-        return `<div class="heatmap-cell" style="background:${cellColor(rate)}" title="${fname} · ${day}.${m}: ${pct}% (ср. ${avgPresent}/${avgTotal} на голосування)"></div>`;
+        const avgNumerator = Math.round(numerator / n);
+        const avgTotal = Math.round(total / n);
+        const metricLabel = activeMode ? 'активно голосували' : 'були присутні';
+        const description = `${fname} · ${day}.${m}: ${pct}% ${metricLabel}; у середньому ${avgNumerator} із ${avgTotal} на голосування`;
+        const safeDescription = escapeHtml(description);
+        return `<div class="heatmap-cell" role="img" tabindex="0" style="background:${cellColor(rate)}" title="${safeDescription}" aria-label="${safeDescription}" data-focus-label="${safeDescription}"></div>`;
       }).join('');
       return `<div class="heatmap-row"><div class="heatmap-label" title="${FACTION_NAMES[fid]||''}">${label}</div>${cells}</div>`;
     }).join('');
@@ -1152,7 +1399,9 @@
     const lastAvailable = allSorted[allSorted.length - 1];
     const lag = lastAvailable < dateTo
       ? `<div class="faction-lag">${escapeHtml(factionDataNote())}</div>` : '';
-    container.innerHTML = lag + header + rows;
+    const legendLabel = activeMode ? 'частка активних' : 'частка присутніх';
+    const legend = `<div class="heatmap-scale-wrap" aria-label="Безперервна шкала від 0 до 100 відсотків"><span>0%</span><span class="heatmap-scale"></span><span>100%</span><span>${legendLabel}</span></div>`;
+    container.innerHTML = lag + header + rows + legend;
   }
 
   function renderForChart(data, dateFrom, dateTo) {
@@ -1214,61 +1463,182 @@
     });
   }
 
-  function renderChart(data, dateFrom, dateTo) {
-    chartData = data;
-    const labels = chartData.map(d => {
-      const [, m, day] = d.date.split('-');
-      return `${day}.${m}`;
-    });
-    const values = chartData.map(d => Math.round(d.avg));
-    const colors = chartData.map(d => {
-      const inRange = d.date >= dateFrom && d.date <= dateTo;
-      const rgb = Math.round(d.avg) >= QUORUM ? '34,197,94' : '239,68,68';
-      return inRange ? `rgba(${rgb},1)` : `rgba(${rgb},0.3)`;
-    });
-    const borderColors = values.map(v => v >= QUORUM ? '#22c55e' : '#ef4444');
-    const borderWidths = chartData.map(d => d.date >= dateFrom && d.date <= dateTo ? 2.5 : 1);
+  const capacityBaselinePlugin = {
+    id: 'capacityBaseline',
+    afterDraw(chart, _args, options) {
+      if (!Number.isFinite(options?.value)) return;
+      const { ctx, chartArea, scales } = chart;
+      const y = scales.y.getPixelForValue(options.value);
+      ctx.save();
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = 'rgba(168,177,193,.65)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(chartArea.left, y);
+      ctx.lineTo(chartArea.right, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#a8b1c1';
+      ctx.font = '10px "IBM Plex Mono", monospace';
+      ctx.fillText(`2019: ${options.value.toFixed(1)}%`, chartArea.left + 5, Math.max(chartArea.top + 11, y - 5));
+      ctx.restore();
+    },
+  };
 
-    if (chartInstance) chartInstance.destroy();
+  function monthSequence(first, last) {
+    const result = [];
+    let [year, month] = first.split('-').map(Number);
+    const [lastYear, lastMonth] = last.split('-').map(Number);
+    while (year < lastYear || (year === lastYear && month <= lastMonth)) {
+      result.push(`${year}-${String(month).padStart(2, '0')}`);
+      month += 1;
+      if (month === 13) { month = 1; year += 1; }
+    }
+    return result;
+  }
 
-    const ctx = document.getElementById('attendanceChart').getContext('2d');
-    chartInstance = new Chart(ctx, {
-      type: 'bar',
-      plugins: [quorumPlugin],
+  function formatUkrainianMonth(monthKey) {
+    const [year, month] = monthKey.split('-').map(Number);
+    return new Intl.DateTimeFormat('uk-UA', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+      .format(new Date(Date.UTC(year, month - 1, 1)));
+  }
+
+  function formatRetrievedDate(value) {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) return 'дату отримання не вказано';
+    return 'отримано ' + new Intl.DateTimeFormat('uk-UA', { month: 'long', year: 'numeric' }).format(date);
+  }
+
+  function renderCapacityTrend(rows) {
+    const canvasId = 'capacityTrendChart';
+    const sourceDate = document.getElementById('capacity-source-date');
+    if (!voteEventFlags) {
+      if (capacityTrendInstance) capacityTrendInstance.destroy();
+      capacityTrendInstance = null;
+      setChartNote(canvasId, 'Класифікація голосувань недоступна');
+      if (sourceDate) sourceDate.textContent = 'класифікація недоступна';
+      return;
+    }
+
+    const maxClassified = voteEventFlags.meta.max_date || '';
+    const eligible = rows
+      .filter(r => (!maxClassified || r.date_agenda <= maxClassified) && isCapacityVote(r))
+      .sort((a, b) => a.date_agenda.localeCompare(b.date_agenda));
+    if (!eligible.length) {
+      if (capacityTrendInstance) capacityTrendInstance.destroy();
+      capacityTrendInstance = null;
+      setChartNote(canvasId, 'Немає класифікованих поіменних голосувань');
+      return;
+    }
+    setChartNote(canvasId, null);
+
+    const buckets = new Map();
+    eligible.forEach(row => {
+      const month = row.date_agenda.slice(0, 7);
+      const bucket = buckets.get(month) || { month, total: 0, sufficient: 0 };
+      bucket.total += 1;
+      if (activeVotes(row) >= QUORUM) bucket.sufficient += 1;
+      buckets.set(month, bucket);
+    });
+    const firstMonth = eligible[0].date_agenda.slice(0, 7);
+    const lastMonth = eligible[eligible.length - 1].date_agenda.slice(0, 7);
+    const monthly = monthSequence(firstMonth, lastMonth).map(month => {
+      const bucket = buckets.get(month);
+      return bucket
+        ? { ...bucket, share: bucket.sufficient / bucket.total * 100 }
+        : { month, total: 0, sufficient: 0, share: null };
+    });
+
+    const baselineRows = eligible.filter(r => r.date_agenda.startsWith('2019-'));
+    const baselineSufficient = baselineRows.filter(r => activeVotes(r) >= QUORUM).length;
+    const baseline = baselineRows.length ? baselineSufficient / baselineRows.length * 100 : null;
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const partialLastMonth = lastMonth === currentMonth;
+    const lastDataIndex = monthly.length - 1;
+    const values = monthly.map(d => d.share === null ? null : +d.share.toFixed(2));
+    const labels = monthly.map(d => d.month);
+
+    if (sourceDate) sourceDate.textContent = formatRetrievedDate(voteEventFlags.meta.retrieved_at);
+    const canvas = document.getElementById(canvasId);
+    const latest = monthly[lastDataIndex];
+    canvas.setAttribute('aria-label',
+      `Місячна частка голосувань із щонайменше 226 активними депутатами. Останній місяць: ${latest.share.toFixed(1)} відсотка, ${latest.sufficient} із ${latest.total} голосувань.`);
+
+    if (capacityTrendInstance) capacityTrendInstance.destroy();
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    capacityTrendInstance = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      plugins: [capacityBaselinePlugin],
       data: {
         labels,
         datasets: [{
-          label: 'Середня явка',
+          label: 'Достатня активність',
           data: values,
-          backgroundColor: colors,
-          borderColor: borderColors,
-          borderWidth: borderWidths,
-          borderRadius: 4,
+          borderColor: '#2a78d6',
+          borderWidth: 2,
+          tension: 0,
+          spanGaps: false,
+          pointRadius: ctx => partialLastMonth && ctx.dataIndex === lastDataIndex ? 4 : 0,
+          pointHoverRadius: 4,
+          pointBackgroundColor: ctx => partialLastMonth && ctx.dataIndex === lastDataIndex ? '#161b26' : '#2a78d6',
+          pointBorderColor: '#86b6ef',
+          pointBorderWidth: 2,
+          segment: {
+            borderColor: ctx => partialLastMonth && ctx.p1DataIndex === lastDataIndex
+              ? 'rgba(42,120,214,.45)' : '#2a78d6',
+          },
         }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: { duration: reducedMotion ? 0 : 300 },
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
+          capacityBaseline: { value: baseline },
           tooltip: {
+            displayColors: false,
+            backgroundColor: 'rgba(15,17,24,.96)',
+            borderWidth: 0,
             callbacks: {
-              title: (items) => chartData[items[0].dataIndex].date,
-              label: (item) => ` Явка: ${item.raw} / 393`,
+              title: items => formatUkrainianMonth(monthly[items[0].dataIndex].month),
+              label: item => {
+                const d = monthly[item.dataIndex];
+                return `${d.share.toFixed(1)}% · ${d.sufficient} із ${d.total} голосувань`;
+              },
+              footer: items => partialLastMonth && items[0].dataIndex === lastDataIndex ? 'Неповний місяць' : '',
             },
           },
         },
         scales: {
           x: {
-            grid: { color: 'rgba(37,45,61,0.3)' },
-            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 11 } },
+            grid: { display: false },
+            border: { display: false },
+            ticks: {
+              color: '#898781',
+              font: { family: 'IBM Plex Mono', size: 10 },
+              maxRotation: 0,
+              autoSkip: false,
+              callback: (_value, index) => {
+                const month = monthly[index].month;
+                const year = Number(month.slice(0, 4));
+                if (index === 0 || index === monthly.length - 1) return String(year);
+                return month.endsWith('-01') && year % 2 === 1 ? String(year) : '';
+              },
+            },
           },
           y: {
             min: 0,
-            max: 393,
-            title: { display: true, text: 'депутатів', color: '#64748b', font: { family: 'IBM Plex Mono', size: 10 } },
-            grid: { color: 'rgba(37,45,61,0.3)' },
-            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 11 }, stepSize: 50 },
+            max: 100,
+            grid: { color: 'rgba(225,224,217,.10)', drawTicks: false },
+            border: { display: false },
+            ticks: {
+              color: '#898781',
+              font: { family: 'IBM Plex Mono', size: 10 },
+              stepSize: 25,
+              callback: value => value + '%',
+            },
           },
         },
       },
@@ -1729,7 +2099,12 @@
   let _initSmooth = 0;
 
   function renderInitiatorChart(rows, agendaMap, dateFrom, dateTo) {
-    const filtered = rows.filter(r => r.date_agenda >= dateFrom && r.date_agenda <= dateTo);
+    // Keep the default single-day view consistent with the neighbouring charts:
+    // one point per series looks like a failed render, so show the last 15 sessions
+    // for context. Explicit date ranges still use exactly the selected interval.
+    const datesForChart = getChartDates(rows, dateFrom, dateTo);
+    const dateSet = new Set(datesForChart);
+    const filtered = rows.filter(r => dateSet.has(r.date_agenda));
 
     // Group by date → initiator
     const ORDER = ['Депутат', 'Президент', 'КМУ'];
@@ -1757,6 +2132,10 @@
 
     const dates = Object.keys(byDate).sort();
     const dateLabels = dates.map(d => { const [,m,day] = d.split('-'); return `${day}.${m}`; });
+    const isRange = dateFrom !== dateTo;
+    document.querySelector('#initiator-title .title-text').textContent = isRange
+      ? `% прийнятих за ініціатором (${dateFrom} — ${dateTo})`
+      : '% прийнятих за ініціатором (останні 15 засідань)';
 
     // Per-session pass rate per initiator
     const datasets = ORDER.map(label => {
@@ -2151,20 +2530,22 @@
       if (cached && cachedFaction) {
         rows = cached.rows;
         agendaMap = cached.agendaMap;
+        loadVoteEventFlagsFromCache();
         fromCache = true;
       }
     }
 
     if (!fromCache) {
       // No cache — blocking network fetch with spinner.
-      // allSettled, not all: faction data is optional. The cards, attendance,
+      // allSettled, not all: faction data is optional. The cards, capacity trend,
       // pass-rate and initiator charts and the whole votes table come from the
       // CSV alone and must still render if faction_summary.json is unreachable.
       overlay.style.display = 'flex';
       overlay.classList.remove('hidden');
-      const [coreRes, factionRes] = await Promise.allSettled([
+      const [coreRes, factionRes, flagsRes] = await Promise.allSettled([
         loadData(),
         loadFactionData(),
+        loadVoteEventFlags(),
       ]);
       if (coreRes.status === 'rejected') {
         console.error(coreRes.reason);
@@ -2176,6 +2557,12 @@
       if (factionRes.status === 'rejected') {
         console.error('Faction data unavailable:', factionRes.reason);
         factionSummary = null;
+      }
+      if (flagsRes.status === 'rejected') {
+        console.error('Vote classification unavailable:', flagsRes.reason);
+        voteEventFlags = null;
+        namedVoteIds = new Set();
+        amendmentVoteIds = new Set();
       }
     }
 
@@ -2232,16 +2619,15 @@
       history.replaceState(null, '', '?' + sp.toString());
       const filteredRows = filterByInit(rows);
       const metrics = getMetrics(filteredRows, dateFrom, dateTo);
-      renderCards(metrics);
+      const capacity = getCapacityMetric(filteredRows, dateFrom, dateTo);
+      renderCards(metrics, capacity);
       renderFactionHeatmap(dateFrom, dateTo); // uses factionSummary, no initiator data
       const chartDates = getChartDates(filteredRows, dateFrom, dateTo);
       const isRange = dateFrom !== dateTo;
       const chartLabel = isRange
         ? `${chartDates.length} засідань (${dateFrom} — ${dateTo})`
         : 'останні 15 засідань';
-      document.querySelector('#attendance-title .title-text').textContent = `Явка по датах (${chartLabel})`;
       document.querySelector('#for-title .title-text').textContent = `Середні голоси «за» (${chartLabel})`;
-      renderChart(getChartData(filteredRows, dateFrom, dateTo), dateFrom, dateTo);
       renderForChart(getChartDataFor(filteredRows, dateFrom, dateTo), dateFrom, dateTo);
       renderPassRateChart(filteredRows, dateFrom, dateTo);
       renderInitiatorChart(filteredRows, agendaMap, dateFrom, dateTo);
@@ -2253,6 +2639,7 @@
     rows.forEach(r => { _billCountByDate[r.date_agenda] = (_billCountByDate[r.date_agenda] || 0) + 1; });
 
     renderAll(initialFrom, initialTo);
+    renderCapacityTrend(rows); // intentionally all-time and all initiators
     initBrushCharts(rows); // one-time setup for C1 and C3
 
     // Update cache age indicator
@@ -2274,6 +2661,22 @@
         document.querySelectorAll('#initSmoothToggle .metric-btn').forEach(b =>
           b.classList.toggle('active', +b.dataset.smooth === _initSmooth));
         renderInitiatorChart(rows, agendaMap, inputFrom.value, inputTo.value);
+      });
+    });
+
+    // Faction heatmap: active participation is the analytical default.
+    document.querySelectorAll('#heatmapMetricToggle .metric-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const metric = btn.dataset.heatmapMetric;
+        if (metric === _heatmapMetric) return;
+        _heatmapMetric = metric;
+        document.querySelectorAll('#heatmapMetricToggle .metric-btn').forEach(b => {
+          const selected = b.dataset.heatmapMetric === _heatmapMetric;
+          b.classList.toggle('active', selected);
+          b.setAttribute('aria-pressed', String(selected));
+        });
+        document.getElementById('heatmapStatus').textContent = '';
+        renderFactionHeatmap(inputFrom.value, inputTo.value);
       });
     });
 
@@ -2368,24 +2771,28 @@
       const refreshBtn = document.querySelector('.refresh-btn');
       if (refreshBtn) refreshBtn.classList.add('spinning');
       const factionDateBefore = factionDatesAvailable().pop() || '';
-      // allSettled so a faction failure doesn't discard freshly fetched CSV data
-      Promise.allSettled([loadData(), loadFactionData()])
-        .then(([coreRes, factionRes]) => {
+      const flagsRevisionBefore = voteFlagsRevision(voteEventFlags);
+      // Optional summaries fail independently of the live voting data.
+      Promise.allSettled([loadData(), loadFactionData(), loadVoteEventFlags()])
+        .then(([coreRes, factionRes, flagsRes]) => {
           if (refreshBtn) refreshBtn.classList.remove('spinning');
           if (factionRes.status === 'rejected') console.error('Faction refresh failed:', factionRes.reason);
-          if (coreRes.status === 'rejected') { console.error(coreRes.reason); return; }
-          const fresh = coreRes.value;
-          const changed = fresh.rows.length !== rows.length ||
-            fresh.rows[0]?.date_agenda !== rows[0]?.date_agenda ||
-            (factionDatesAvailable().pop() || '') !== factionDateBefore;
+          if (flagsRes.status === 'rejected') console.error('Vote classification refresh failed:', flagsRes.reason);
+          if (coreRes.status === 'rejected') console.error(coreRes.reason);
+          const fresh = coreRes.status === 'fulfilled' ? coreRes.value : { rows, agendaMap };
+          const coreChanged = fresh.rows.length !== rows.length ||
+            fresh.rows[0]?.date_agenda !== rows[0]?.date_agenda;
+          const factionChanged = (factionDatesAvailable().pop() || '') !== factionDateBefore;
+          const flagsChanged = voteFlagsRevision(voteEventFlags) !== flagsRevisionBefore;
           if (cacheAgeEl) cacheAgeEl.textContent = '· оновлено';
-          if (changed) {
+          if (coreChanged || factionChanged || flagsChanged) {
             rows = fresh.rows;
             agendaMap = fresh.agendaMap;
             _billCountByDate = {};
             rows.forEach(r => { _billCountByDate[r.date_agenda] = (_billCountByDate[r.date_agenda] || 0) + 1; });
             renderAll(inputFrom.value, inputTo.value);
-            initBrushCharts(rows);
+            renderCapacityTrend(rows);
+            if (coreChanged || factionChanged) initBrushCharts(rows);
           }
         });
     }
@@ -2404,6 +2811,12 @@
     document.querySelectorAll('.info-btn.open').forEach(b => b.classList.remove('open'));
   });
 
+  // Exact heatmap values remain visible when a keyboard user focuses a cell.
+  document.getElementById('factionHeatmap').addEventListener('focusin', event => {
+    const label = event.target.closest?.('.heatmap-cell')?.dataset.focusLabel;
+    if (label) document.getElementById('heatmapStatus').textContent = label;
+  });
+
   // ── Tab switching ──────────────────────────────────────────
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2417,7 +2830,7 @@
       history.replaceState(null, '', '?' + sp.toString());
       // Resize charts when returning to the overview tab
       if (btn.dataset.tab === 'charts') {
-        [chartInstance, forChartInstance, donutInstance,
+        [capacityTrendInstance, forChartInstance, donutInstance,
          factionTrendInstance, factionTrendOverviewInstance,
          passRateInstance, coalitionInstance, coalitionOverviewInstance]
           .forEach(c => c && c.resize());

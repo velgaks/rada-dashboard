@@ -66,3 +66,18 @@ in seconds — much faster than loading the page and finding nothing rendered.
 bill names routinely contain commas and quotes; shipping it would have corrupted every such row.
 Read stored snippets critically — and when you reject one, say so in the file so the next reader
 doesn't reach for it again.
+
+### A rendered canvas can still look like a failed chart
+Counting canvases, checking their dimensions, and seeing no console errors did not catch a line
+chart that received only one date under the default filter. It technically rendered three points,
+but to a reader it looked blank. Browser QA must include a clean-cache visual pass of the default
+state and explicitly flag charts with fewer than two x-values. When neighbouring charts already
+use a contextual fallback (here: the last 15 sessions), reuse that rule consistently.
+
+### Test the user's actual preview boundary, not only the workspace server
+The new capacity chart worked under the repository-root Node server but failed in an embedded/file
+preview that exposed `index.html` without the new sibling JSON. A successful localhost test proves
+the code and asset are compatible; it does not prove the asset is reachable from every supported
+entry point. New companion assets need either an explicit launch requirement or a safe authoritative
+fallback. For this dashboard, the compact generated JSON is the fast path and the official Rada CSV
+is the fallback.

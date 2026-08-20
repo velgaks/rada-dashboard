@@ -99,3 +99,76 @@ Final state, real data, `localStorage` cleared, load 735 ms:
 274940 bytes with exit 56 while the server logs `200`. Logged as Error #11. Verification was
 completed against a Node static server on port 5175. The deployed site is unaffected.
 Worth switching `.claude/launch.json` off Python if local work continues.
+
+---
+
+## Session 2026-08-20 — Active participation and 226-vote capacity
+
+**Trigger:** Add the activity metrics used in the Texty analysis, except the 70-day comparison.
+
+### Plan
+- [x] Generate a compact official-event classification artifact for named votes and amendments
+- [x] Add classifier unit tests and wire the artifact into the daily update workflow
+- [x] Replace “maximum present” with the filtered share of votes having at least 226 active MPs
+- [x] Replace the attendance chart with the all-time monthly capacity trend
+- [x] Add “present / actively voted” modes to the faction heatmap
+- [x] Update project documentation and backlog status
+- [x] Verify data benchmarks, failure isolation, JavaScript, browser rendering, and responsiveness
+
+### Review
+
+- Built `vote_event_flags.json` from the official IX-convocation event list: 75,655 rows,
+  22,093 named-vote IDs, 10,236 numbered amendments, and 274 registrations; coverage is
+  2019-08-29 through 2026-08-19. IDs are sorted/unique and amendments are a subset of named votes.
+- The builder preserves the artifact when `Last-Modified` is unchanged; the daily workflow runs
+  its tests and stages the new JSON alongside the existing dashboard data.
+- Four classifier tests pass, including numbered-amendment phrasings, registration exclusion,
+  deterministic output, and the non-amendment legal title “Поправки до Монреальського протоколу”.
+- Independent current-snapshot audit reproduced the planned benchmarks: 2019 — 1,062 of 1,069
+  eligible votes (`99.3%`); 2026 through 19 August — 436 of 729 (`59.8%`).
+- `node --check`-equivalent parsing of the inline script and `git diff --check` pass.
+- Browser verification with real data found no console errors: the filtered card, all-time trend,
+  2019 baseline, partial-month marker, exact tooltips, and both heatmap modes render correctly.
+  The active/present toggle exposes `aria-pressed`; focused cells show their exact value visibly.
+- Simulated missing `vote_event_flags.json`: the capacity card becomes `—` with an explanation,
+  while the remaining cards, 8 charts, and 25-row table continue to render.
+- Responsive checks pass at 320 and 1440 px with no page-level horizontal overflow; the heatmap
+  keeps its own intentional horizontal scroll on mobile.
+- Independent implementation review found no blocking issues. Its cache-validation, SWR refresh,
+  keyboard-status, and low-end scale-contrast recommendations were incorporated before handoff.
+- No commit, push, or public deployment was performed.
+
+---
+
+## Follow-up 2026-08-20 — chart that looked unloaded
+
+- [x] Reproduce the report on a clean-cache local origin and inspect console output
+- [x] Identify the sparse default-state chart rather than treating it as a network failure
+- [x] Give the initiator chart the same last-15-sessions fallback as the neighbouring charts
+- [x] Re-run syntax, console, and visual browser checks
+
+### Review
+
+The default filter selects one day. The initiator line chart previously respected that day
+literally, producing one isolated point per series; it had loaded successfully but looked blank.
+It now uses the last 15 sessions when the date range is a single day, matching the “average for”
+and pass-rate charts. Explicit multi-day ranges remain exact. A clean reload shows full lines,
+the updated scope in the title, and no console warnings or errors.
+
+---
+
+## Follow-up 2026-08-20 — classification unavailable in file preview
+
+- [x] Confirm the compact artifact exists and reproduces correctly under the workspace server
+- [x] Reproduce an entry point where `index.html` is available but its sibling JSON is not
+- [x] Add an official-source fallback that applies the same named-vote/amendment rules in-browser
+- [x] Test with `vote_event_flags.json` deliberately absent and restore the artifact afterward
+
+### Review
+
+The embedded/file preview shown by the user did not expose `vote_event_flags.json`, although the
+file exists in the workspace and loads under the project server. `loadVoteEventFlags()` now keeps
+the compact JSON as its fast path, then falls back to the official Rada event CSV and caches the
+derived payload. In the forced-404 browser test, the fallback rendered the card and trend without
+console warnings: latest day `15/22` (`68.2%`), all time `10,746/11,857` (`90.6%`). The original
+183,429-byte artifact was restored after the test.

@@ -25,7 +25,10 @@ Implemented as stacked **area** chart (not bar) with monthly aggregation. Shows 
 ---
 
 ### C4. ✅ DONE — Faction participation heatmap
-Implemented as factions × sessions grid with color-coded presence rate (green→red). Shows last 15 sessions in selected range.
+Implemented as factions × sessions grid with an **active / present** toggle, active participation as the default, and a continuous 0–100% sequential scale. Shows the last 15 sessions in the selected range.
+
+### Capacity trend. ✅ DONE 2026-08-20 — Can the Rada muster 226 active MPs?
+Monthly share of named, non-amendment votes where `for + against + abstain >= 226`. Uses compact official event classification, excludes registrations, includes signal votes, and marks an incomplete current month.
 
 ---
 
@@ -113,10 +116,8 @@ setInterval(() => {
 
 ---
 
-### 7. Attendance trend line overlay on bar chart
-**What:** Add a moving-average trend line on top of the attendance bar chart.
-**Why:** Hard to see the attendance trend when bars vary a lot. A 3- or 5-session rolling average makes the direction clear at a glance.
-**How:** Chart.js supports mixed chart types — add a second dataset with `type: 'line'`, compute rolling average values, set `pointRadius: 0`, `tension: 0.4`.
+### 7. ✅ SUPERSEDED 2026-08-20 — Attendance trend line overlay
+The attendance bar was replaced by the more meaningful monthly share of votes with at least 226 active MPs. No smoothing is used, so shocks remain visible.
 
 ---
 
@@ -188,7 +189,7 @@ Implemented: Останнє | Місяць | 3 місяці | Весь час.
 | P6 | Cache 10MB agenda JSON (Cache API/IndexedDB) | Medium | High | Frontend |
 | P7 | Build date-indexed Map for O(1) lookups | Low | High | Frontend |
 | P8 | Export filtered data to CSV | ✅ Done 2026-08-05 | High | UX |
-| P9 | "Actively voted" vs "registered" heatmap toggle | Low | Medium | Political |
+| P9 | "Actively voted" vs "registered" heatmap toggle | ✅ Done 2026-08-20 | Medium | Political |
 | P10 | Exclude procedural votes from aggregates by default | Low | Medium | Political |
 | P11 | ARIA roles + canvas labels (accessibility) | Medium | Medium | UX |
 | P12 | Deputy scatter/PCA (UMAP) | High | Very High | Political |
