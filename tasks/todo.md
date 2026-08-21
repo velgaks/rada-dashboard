@@ -118,14 +118,15 @@ Worth switching `.claude/launch.json` off Python if local work continues.
 ### Review
 
 - Built `vote_event_flags.json` from the official IX-convocation event list: 75,655 rows,
-  22,093 named-vote IDs, 10,236 numbered amendments, and 274 registrations; coverage is
+  22,093 named-vote IDs, 10,238 amendment actions, and 274 registrations; coverage is
   2019-08-29 through 2026-08-19. IDs are sorted/unique and amendments are a subset of named votes.
 - The builder preserves the artifact when `Last-Modified` is unchanged; the daily workflow runs
   its tests and stages the new JSON alongside the existing dashboard data.
-- Four classifier tests pass, including numbered-amendment phrasings, registration exclusion,
-  deterministic output, and the non-amendment legal title “Поправки до Монреальського протоколу”.
-- Independent current-snapshot audit reproduced the planned benchmarks: 2019 — 1,062 of 1,069
-  eligible votes (`99.3%`); 2026 through 19 August — 436 of 729 (`59.8%`).
+- Five classifier tests pass, including numbered and narrowly phrased unnumbered amendments,
+  registration exclusion, deterministic output, and the non-amendment legal title “Поправки до
+  Монреальського протоколу”.
+- Independent current-snapshot audit reproduced the corrected benchmarks: 2019 — 1,062 of 1,068
+  eligible votes (`99.4%`); 2026 through 19 August — 436 of 729 (`59.8%`).
 - `node --check`-equivalent parsing of the inline script and `git diff --check` pass.
 - Browser verification with real data found no console errors: the filtered card, all-time trend,
   2019 baseline, partial-month marker, exact tooltips, and both heatmap modes render correctly.
@@ -170,5 +171,48 @@ The embedded/file preview shown by the user did not expose `vote_event_flags.jso
 file exists in the workspace and loads under the project server. `loadVoteEventFlags()` now keeps
 the compact JSON as its fast path, then falls back to the official Rada event CSV and caches the
 derived payload. In the forced-404 browser test, the fallback rendered the card and trend without
-console warnings: latest day `15/22` (`68.2%`), all time `10,746/11,857` (`90.6%`). The original
-183,429-byte artifact was restored after the test.
+  console warnings: latest day `15/22` (`68.2%`), all time `10,745/11,855` (`90.6%`). The current
+  183,438-byte artifact was restored after the test.
+
+---
+
+## Session 2026-08-20 — faction health and majority diagnostics
+
+**Trigger:** Reframe the dashboard around 226-vote capacity, faction mobilisation and discipline,
+silent formal presence, and the governing faction's dependence on partners.
+
+### Plan
+
+- [x] Build and test a deterministic `faction_diagnostics.json` preprocessing pipeline with event-time faction membership
+- [x] Replace the overview cards with capacity, active participation, silent presence, and partner dependence
+- [x] Add mobilisation × discipline, presence-gap, active-participation heatmap, and partner-support views
+- [x] Move output/agenda charts into a collapsed secondary section and remove the old coalition area
+- [x] Add cache/schema validation and isolate diagnostics-data failures
+- [x] Update the daily workflow, methodology, project memory, and backlog
+- [x] Run data, JavaScript, browser, accessibility, and responsive verification
+
+### Review
+
+Independent review found that the vote-results TSV rewrites historical `faction_id` values using
+later affiliations. Schema 2 therefore ignores that field and reconstructs affiliation at each
+`date_event` from the Rada's official deputy roster and dated faction-transition dataset.
+
+- Generated a 778,518-byte artifact covering 427 dates from 2019-08-29 to 2026-08-19:
+  22,093 source rows, 11,555 working votes after excluding 10,238 amendments and 300 signals;
+  3,679 law-stage votes and 3,397 successful ones.
+- The corrected coalition partition is exact: 346 successful votes where SN supplied its own 226
+  votes and 3,051 where it needed partners (89.8%). All-time normalised partner support is led by
+  Довіра (68.7%), Відновлення України (56.0%), and Голос (52.1%).
+- Nineteen Python tests pass, including classifiers, event-time faction history, discipline
+  exclusions, coalition formulas,
+  current-artifact invariants, deterministic JSON, and Last-Modified/schema skip behaviour.
+- Inline JavaScript syntax, Python compilation, and `git diff --check` pass. Schema hydration rejects
+  invalid counters and the `sn_alone + sn_dependent != passed` invariant.
+- Browser QA with official data passes at 1440 and 320 px without page overflow or unexpected
+  console errors. Scatter labels use collision-aware leader lines; faction aliases remain readable.
+- Initiator filtering changes only the capacity/output layer (68.2% to 100.0% for the latest
+  President-initiated slice); diagnostics stay at 63.6% active, 23.0% silent, and 100.0% dependent.
+- Keyboard focus exposes exact heatmap values. Opening the collapsed section initializes all five
+  legacy canvases at non-zero dimensions. A forced diagnostics 404 leaves the capacity trend,
+  68.2% card, and 25-row table intact while only the new diagnostics show unavailable states.
+- No commit, push, or public deployment was performed.

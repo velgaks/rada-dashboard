@@ -1,5 +1,10 @@
 plenary_vote_results-skl9.tsv
+plenary_vote_results-skl9.tsv.part
 plenary_result_event-skl9.csv
 plenary_event_question-skl9.csv
 plenary_event_question-skl9.csv.part
+plenary_deputies-skl9.csv
+plenary_deputies-skl9.csv.part
+mps-trans_fr.csv
+mps-trans_fr.csv.part
 __pycache__/

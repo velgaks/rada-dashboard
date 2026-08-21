@@ -13,14 +13,12 @@ What actually matters:
 
 ---
 
-## Tier 1 — Feasible with current data (faction_summary.json per date/faction)
+## Tier 1 — Implemented with compact daily faction aggregates
 
-### 1. Faction participation heatmap
-**What**: Grid — rows = factions, columns = sessions (dates), cell color = % of faction deputies who were present (not absent).
-**Why useful**: Instantly shows which factions boycott sessions, when attendance drops, patterns across time.
-**Data needed**: `faction_summary.json` already has `absent` counts. Need total deputies per faction from `factions.json` API.
-**Chart type**: Custom CSS grid or Chart.js matrix plugin.
-**Reference**: Texty does deputy × week attendance heatmaps.
+### 1. ✅ IMPLEMENTED — Active-participation heatmap and silent-presence gap
+The session heatmap uses active votes (`за + проти + утримались`) over all member-vote
+opportunities. Formal presence is shown separately as a sorted dumbbell against active
+participation, so the gap directly measures `не голосував` instead of hiding it behind a toggle.
 
 ### 2. ✅ IMPLEMENTED — Faction "За" rate trend lines
 Top 5 factions by vote volume, 3-session rolling average, consistent color map across charts.
@@ -28,8 +26,11 @@ Top 5 factions by vote volume, 3-session rolling average, consistent color map a
 ### 3. ✅ IMPLEMENTED (modified) — Pass rate bar chart
 Changed from "quorum margin" to "% bills passed per session" — more intuitive, uses per-bill data. Color-coded: green ≥70%, yellow 40-70%, red <40%.
 
-### 4. ✅ IMPLEMENTED (modified) — Coalition dependency stacked area
-Changed from stacked bar to stacked **area** chart with monthly aggregation. Falls back to daily when ≤1 month selected. Quorum line at 226.
+### 4. ✅ REPLACED 2026-08-20 — Normalised partner dependence
+The stacked area was removed because raw contributions mostly measured faction size. The new
+view separates successful law-stage votes where Слуга народу had its own 226 from those requiring
+partners, then ranks partners by `За / all member-vote opportunities`; strict necessity remains
+an exact tooltip count.
 
 ---
 
@@ -41,13 +42,11 @@ Changed from stacked bar to stacked **area** chart with monthly aggregation. Fal
 **Data needed**: Pre-process TSV → `deputy_attendance.json` { deputy_id: { present, absent, total, faction_id } }
 **Script**: `build_deputy_attendance.py`
 
-### 6. Faction internal discipline score
-**What**: Per faction, what % of its deputies voted the same as the faction majority on each bill?
-Show as bar chart: "Discipline %" per faction for selected period.
-**Why useful**: Shows which factions are united blocs vs. loose coalitions with internal dissent.
-**Formula**: For each bill, find faction majority vote; count deputies who matched it / total voting.
-**Data needed**: Pre-process TSV → `faction_discipline.json`
-**Reference**: Rada4You tracks 831,858 against-faction votes (19.7% dissent rate).
+### 6. ✅ IMPLEMENTED 2026-08-20 — Mobilisation × faction discipline
+Each faction is positioned by active participation and agreement with its unique modal active
+choice. Absent and non-voting members affect mobilisation but not discipline; ties and cases with
+fewer than two active members are excluded explicitly. The two-dimensional view distinguishes
+an attendance problem from an internal split.
 
 ### 7. Deputy vote scatter (simplified UMAP)
 **What**: 2D scatter — each point = 1 deputy, positioned by voting similarity (PCA/UMAP of vote vectors). Color by faction. Interactive tooltips.
@@ -115,7 +114,7 @@ Show as bar chart: "Discipline %" per faction for selected period.
 
 **Ідея**: Замість поточної довільної палітри — використовувати офіційні партійні кольори фракцій (Слуга народу — зелений, ОПЗЖ — синій, Батьківщина — червоний і т.д.).
 **Чому**: Більш інтуїтивне зчитування для аудиторії, яка знає партії.
-**Де застосувати**: Всі графіки де є faction — лінійний тренд, coalition area, heatmap, discipline bars.
+**Де застосувати**: Всі фракційні графіки — тренд підтримки, мобілізація × дисципліна, dumbbell, heatmap і партнерський dot plot.
 **Реалізація**: Захардкодити color map в `factionColors` об'єкті, замінити поточну `COLORS` палітру.
 **Пріоритет**: Low-effort, high-impact — швидке UX-покращення.
 
@@ -125,9 +124,9 @@ Show as bar chart: "Discipline %" per faction for selected period.
 
 | Current chart | Problem | Replace with |
 |---|---|---|
-| Faction stacked bar (raw counts) | ✅ REMOVED — replaced by #2 (% За trend) and #4 (coalition stacked area) | Done |
-| Attendance bar (by date, single metric) | Shows total, not per-faction breakdown | Tier 1 #1 (faction heatmap) — next priority |
-| Donut (passed/failed) | Only meaningful for one session, not ranges | Keep for single-session view, hide in range mode |
+| Faction stacked bar (raw counts) | ✅ REMOVED — replaced by normalised faction diagnostics and partner support | Done |
+| Attendance bar (by date, single metric) | ✅ REMOVED — replaced by the active-participation heatmap and presence→activity dumbbell | Done |
+| Donut (passed/failed) | ✅ REMOVED — compact totals remain in the collapsed output section | Done |
 
 ---
 
@@ -136,12 +135,12 @@ Show as bar chart: "Discipline %" per faction for selected period.
 ✅ **Done:**
 1. Tier 1 #2 — Faction "За" rate trend lines (top 5, rolling avg)
 2. Tier 1 #3 — Pass rate bar chart (modified from quorum margin)
-3. Tier 1 #4 — Coalition dependency stacked area (monthly)
+3. Tier 1 #4 — Normalised partner dependence
+4. Tier 1 #1 — Active-participation heatmap and silent-presence gap
+5. Tier 2 #6 — Mobilisation × faction discipline
 
 **Next priority:**
-4. **Tier 1 #1** — Faction participation heatmap (requires CSS grid work)
-5. **Tier 2 #5** — Deputy absentee table (needs new Python script ~1hr)
-6. **Tier 2 #6** — Faction discipline score (needs new Python script ~2hr)
+6. **Tier 2 #5** — Deputy absentee table (needs new Python script ~1hr)
 7. **Tier 2 #7** — Deputy scatter plot (needs scikit-learn, most complex)
 
 ---
@@ -198,8 +197,8 @@ https://voxukraine.org/zminy-v-mono-shho-stalosya-zi-slugoyu-narodu-za-5-rokiv-d
 
 ## Data architecture note
 
-All Tier 1 charts can run in browser with current static files.
-Tier 2 requires running Python scripts to generate new `.json` summary files.
+Tier 1 health charts read the compact pre-built `faction_diagnostics.json`; they never parse the
+68 MB source TSV in the browser. Tier 2/3 additions likewise require Python-generated summaries.
 Tier 3 requires D3/Sigma for graph rendering — much larger scope.
 
 The TSV source file (`plenary_vote_results-skl9.tsv`, 68MB) should **never** be fetched in browser.

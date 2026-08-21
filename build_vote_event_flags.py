@@ -1,10 +1,11 @@
 """Build compact vote-event classification metadata for the dashboard.
 
 The official plenary event CSV contains speeches, registrations and named votes.
-Only type_event=0 rows with an id_event are named votes.  Amendment votes are a
+Only type_event=0 rows with an id_event are named votes. Amendment votes are a
 subset whose event name contains an adjacent Ukrainian "поправ… №<digits>"
-construction.  This intentionally does not classify legislation whose title
-merely contains a phrase such as "Поправка до Монреальського протоколу".
+construction or starts with the narrow unnumbered amendment-action wording
+used by the source. This intentionally does not classify legislation whose
+title merely contains a phrase such as "Поправка до Монреальського протоколу".
 
 The generated JSON is compact and stable: event IDs are de-duplicated and
 sorted, object keys are sorted during serialization, and an unchanged upstream
@@ -31,11 +32,15 @@ SOURCE_URL = (
 )
 SOURCE_PATH = Path("plenary_event_question-skl9.csv")
 OUTPUT_PATH = Path("vote_event_flags.json")
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _UKRAINIAN_LETTERS = "А-Яа-яІіЇїЄєҐґ"
 AMENDMENT_PATTERN = re.compile(
     rf"(?<![{_UKRAINIAN_LETTERS}])поправ[{_UKRAINIAN_LETTERS}'’\-]*\s*№\s*\d+",
+    re.IGNORECASE,
+)
+UNNUMBERED_AMENDMENT_ACTION_PATTERN = re.compile(
+    r"^поіменне голосування про поправку до про[єе]кту закону\b",
     re.IGNORECASE,
 )
 DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -127,8 +132,15 @@ def curl_download(url: str, destination: Path) -> None:
 
 
 def is_amendment_name(name: str) -> bool:
-    """Return whether a vote name contains an adjacent amendment-number phrase."""
-    return bool(AMENDMENT_PATTERN.search(name or ""))
+    """Identify numbered or narrowly phrased unnumbered amendment actions."""
+    return bool(AMENDMENT_PATTERN.search(name or "")) or is_unnumbered_amendment_name(
+        name
+    )
+
+
+def is_unnumbered_amendment_name(name: str) -> bool:
+    """Match amendment actions, not laws whose titles mention an amendment."""
+    return bool(UNNUMBERED_AMENDMENT_ACTION_PATTERN.search((name or "").strip()))
 
 
 def _event_id(value: object) -> int | None:

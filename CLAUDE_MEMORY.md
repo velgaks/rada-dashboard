@@ -19,16 +19,19 @@ A single-file (`index.html`) **Modern Newsroom**-styled dashboard for the Ukrain
 | `faction_summary.meta.json` | Stores only `{"last_modified": "<HTTP date>"}` — the TSV's Last-Modified from the last successful build |
 | `build_faction_summary.py` | Python script — HEAD-checks the TSV's `Last-Modified`; **skips** if unchanged, otherwise **full download via curl**, aggregates per date/faction, outputs `faction_summary.json`. Range/incremental downloads do **not** work: the TSV is regenerated with newest sessions *prepended*, so byte offsets shift. |
 | `vote_event_flags.json` | Compact official-event classification: all named-vote IDs plus the amendment-vote subset, with coverage metadata. Used for the ≥226 active-deputy metric and trend. |
-| `build_vote_event_flags.py` | Downloads the official event CSV, excludes registrations, classifies numbered amendments, and writes deterministic `vote_event_flags.json`. |
+| `build_vote_event_flags.py` | Downloads the official event CSV, excludes registrations, classifies numbered and narrowly phrased unnumbered amendment actions, and writes deterministic `vote_event_flags.json`. |
 | `tests/test_build_vote_event_flags.py` | Unit tests for amendment classification, legal-title false positives, registration exclusion, and deterministic output. |
+| `faction_diagnostics.json` | Daily additive aggregates for faction mobilisation, discipline, formal presence, and governing-party partner dependence. Optional at runtime. |
+| `build_faction_diagnostics.py` | Preprocesses the ignored deputy-vote TSV plus official event classifications; downloads missing sources only when a rebuild is required. |
+| `tests/test_build_faction_diagnostics.py` | Classifier, formula, aggregation, invariant, and deterministic-output tests for faction health metrics. |
 | `plenary_vote_results-skl9.tsv` | Raw ~70 MB individual deputy votes. **Never serve to browser.** Pre-process only. In `.gitignore`. |
 | `plenary_result_event-skl9.csv` | Already fetched live from API (not served locally). In `.gitignore`. |
-| `.github/workflows/update-faction-data.yml` | GitHub Actions — tests builders and auto-updates faction and event-classification data daily at 14:00 Kyiv time |
+| `.github/workflows/update-faction-data.yml` | GitHub Actions — tests builders and auto-updates faction, diagnostics, and event-classification data daily at 14:00 Kyiv time |
 | `CLAUDE_MEMORY.md` | This file |
 | `CLAUDE_ERRORS.md` | Error log — problems encountered and solutions |
 | `NEXT_IMPROVEMENTS.md` | Prioritized feature backlog |
 | `CHART_IDEAS.md` | Research-based chart improvement ideas (from VoxUkraine, Texty, CHESNO, Rada4You analysis) |
-| `.claude/launch.json` | Dev server config (`py -m http.server 5173`) |
+| `.claude/launch.json` | Dev server config (`node serve.js 5174`) |
 | `.gitignore` | Excludes TSV and CSV data files from git |
 
 ## Data Sources
@@ -37,15 +40,35 @@ A single-file (`index.html`) **Modern Newsroom**-styled dashboard for the Ukrain
 | `https://data.rada.gov.ua/ogd/zal/ppz/skl9/plenary_result_event-skl9.csv` | ~1 MB | CSV | `date_agenda, id_question, id_event, for, against, abstain, not_voting, total, presence, absent, voting_result` |
 | `https://data.rada.gov.ua/ogd/zal/ppz/skl9/plenary_agenda-skl9.json` | ~10 MB | JSON | `date_agenda, id_question, name_question` |
 | `https://data.rada.gov.ua/ogd/zal/ppz/skl9/plenary_event_question-skl9.csv` | ~15 MB | CSV | `date_agenda, type_event, date_event, name_event, id_event`; preprocessed only, never fetched in browser |
+| `https://data.rada.gov.ua/ogd/zal/ppz/skl9/plenary_vote_results-skl9.tsv` | ~80 MB | TSV | Per-deputy vote codes; preprocessed only, never fetched in browser |
+| `https://data.rada.gov.ua/ogd/zal/ppz/skl9/plenary_deputies-skl9.csv` | small | CSV | Historical voting IDs and name aliases used to join faction histories |
+| `https://data.rada.gov.ua/ogd/zal/mps/mps-trans_fr.csv` | ~160 KB | CSV | Exact dated faction/group membership intervals |
 | `https://data.rada.gov.ua/ogd/zal/ppz/skl9/dict/factions.json` | tiny | JSON | Faction names by ID (loaded at runtime to avoid hardcoding) |
 | `faction_summary.json` | 268 KB | JSON | `{ "YYYY-MM-DD": { "faction_id": { for, against, abstain, not_voting, absent } } }` |
 | `vote_event_flags.json` | ~180 KB | JSON | `{ meta, named_vote_ids, amendment_ids }` |
+| `faction_diagnostics.json` | ~760 KB | JSON | `{ meta, daily[date].factions, daily[date].coalition }` |
 
 - CORS open on all endpoints — no proxy needed.
 - `voting_result`: `1` = passed, `0` = failed.
 - Join key: `id_question` (cast with `Number()`).
-- TSV results column format: `deputy_id:faction_id:vote_code|...` (vote codes: 1=За, 2=Проти, 3=Утримався, 4=Не голосував, 0=Відсутній)
+- TSV results column format: `deputy_id:faction_id:vote_code|...` (vote codes: 1=За, 2=Проти, 3=Утримався, 4=Не голосував, 0=Відсутній). Do **not** use the embedded `faction_id` historically: the source rewrites old rows after deputies change affiliation. `build_faction_diagnostics.py` reconstructs the event-time faction from the official deputy roster and dated transition intervals.
 - Faction names from API have verbose prefixes — cleaned with regex: strip "Фракція політичної партії", "Депутатська група", " у Верховній Раді України", and all `"` chars.
+
+### Faction-health definitions
+
+- Working votes are named votes minus numbered and unnumbered amendment actions and signals.
+  Registrations are already absent from the named-vote ID set. This differs intentionally from
+  the 226-capacity trend, which includes signal votes to match the Texty methodology.
+- `active = for + against + abstain`; `present = active + not_voting`; the denominator also
+  includes absent member-vote records.
+- Discipline uses only active choices. For each faction-vote, the unique modal choice contributes
+  its count over all active members; ties and cases with fewer than two active members are excluded.
+  Period results sum those member-vote numerators and denominators.
+- Partner dependence uses successful votes (`total for >= 226`) for projects of laws/codes at
+  key reading stages, including first, second/repeated second, and final readings. Partner support
+  is normalised by all of that faction's member-vote
+  opportunities on SN-dependent votes; strict necessity means removing its `for` votes drops the
+  result below 226 and can be true for multiple partners in one vote.
 
 ## Layout / Features (current state)
 
@@ -59,17 +82,20 @@ A single-file (`index.html`) **Modern Newsroom**-styled dashboard for the Ukrain
 - URL persistence via `?from=&to=` query params
 
 ### Metric Cards (4)
-- Прийнято / Провалено counts
-- Середній % «за»
-- Достатня активність: share of filtered named, non-amendment votes with `for + against + abstain >= 226`
+- Share of relevant votes with at least 226 active MPs
+- Active member-vote participation on named working votes
+- Share marked formally present but not voting, among all formally present member-votes
+- Share of successful law-stage votes where Слуга народу lacked its own 226
 
-### Charts (Огляд tab) — each has an ⓘ info popup tooltip
+### Primary charts (Огляд tab) — each has an ⓘ info popup tooltip and attribution
 - All-time monthly trend of named, non-amendment votes with at least 226 active MPs; incomplete current month is marked
-- Average "За" votes bar chart (per session, quorum line)
-- C1: Faction % «за» trend lines (top 5 factions by volume, 3-session rolling average)
-- C2: Pass rate bar chart (% bills passed per session, green ≥70% / yellow 40-70% / red <40%)
-- C3: Coalition dependency stacked area chart (monthly aggregation, quorum line at 226)
-- C4: Faction participation heatmap with active/present toggle and a continuous 0–100% scale
+- Mobilisation × discipline scatter by faction, using a unique modal active choice
+- Formal presence versus active participation dumbbell, exposing the `не голосував` gap
+- Active-participation heatmap by faction and sitting date on the same working-vote universe
+- Governing-party self-sufficiency strip plus normalised partner-support ranking
+
+Average "За", faction `% За/Проти`, pass rate, and initiator pass rate remain in a collapsed
+secondary output/agenda section. The old raw coalition stacked area is removed.
 
 ### Votes Table (Голосування tab)
 - Virtual scroll: renders 50 rows at a time via IntersectionObserver sentinel
@@ -106,7 +132,7 @@ A single-file (`index.html`) **Modern Newsroom**-styled dashboard for the Ukrain
 ```
 
 ## Dev Server
-- Config: `.claude/launch.json` → `py -m http.server 5174` (**port 5174**, not 5173)
+- Config: `.claude/launch.json` → `node serve.js 5174`
 - Launch via the preview tool with name `vr-dashboard`
 - ⚠️ Never open via `file://` — Chrome blocks cross-origin fetch from file:// pages
 
@@ -129,19 +155,19 @@ git push
 
 **Key insight from research (VoxUkraine, Texty, CHESNO, Rada4You):**
 Raw vote counts per faction are nearly useless — Слуга Народу always dominates by size.
-What matters: participation rates, % За, faction discipline, coalition dependency.
+What matters: active participation, the gap from formal presence, faction discipline, and
+normalised partner dependence.
 
-### Implemented charts:
-1. **C1** ✅ Faction % За trend lines (top 5, 3-session rolling avg)
-2. **C2** ✅ Pass rate bar (% bills passed per session, color-coded)
-3. **C3** ✅ Coalition dependency stacked area (monthly aggregation)
-4. **C4** ✅ Faction participation heatmap (active/present toggle, continuous scale)
-5. **Capacity trend** ✅ Monthly share of non-amendment named votes with at least 226 active MPs
+### Implemented health charts:
+1. **Capacity trend** ✅ Monthly share of non-amendment named votes with at least 226 active MPs
+2. **Mobilisation × discipline** ✅ Separates turnout failure from internal disagreement
+3. **Silent formal presence** ✅ Presence-to-activity dumbbell by faction
+4. **Active heatmap** ✅ Working-vote participation by faction and date, continuous 0–100% scale
+5. **Partner dependence** ✅ SN self-sufficiency plus normalised support and strict necessity
 
-### Requires new Python pre-processing:
+### Remaining ideas requiring new Python pre-processing:
 6. **C5** Deputy absentee ranking (`build_deputy_attendance.py`)
-7. **C6** Faction discipline score (`build_faction_discipline.py`)
-8. **C7** Deputy vote scatter / PCA map (`build_deputy_embedding.py`, needs scikit-learn)
+7. **C7** Deputy vote scatter / PCA map (`build_deputy_embedding.py`, needs scikit-learn)
 
 ## Known Issues / Gotchas
 - **`faction_summary.json` is not 1:1 with the CSV** — the CSV has 439 distinct session dates,
@@ -161,3 +187,6 @@ What matters: participation rates, % За, faction discipline, coalition depende
 - System `python`/`py` launchers may be absent; use the Codex bundled Python path from `load_workspace_dependencies`
 - TSV is 68 MB — never fetch in browser, always pre-process with Python
 - Faction name from API has nested quotes (e.g., `"Партія "За майбутнє"`) — use `.replace(/"/g, '')` after prefix/suffix removal
+- The raw vote TSV's faction IDs are present-day/backfilled, not event-time affiliations. Never
+  build historical faction or coalition metrics from those IDs; join `plenary_deputies-skl9.csv`
+  to `mps-trans_fr.csv` and resolve the interval at `date_event`.
