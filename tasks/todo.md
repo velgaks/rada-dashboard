@@ -216,3 +216,38 @@ later affiliations. Schema 2 therefore ignores that field and reconstructs affil
   legacy canvases at non-zero dimensions. A forced diagnostics 404 leaves the capacity trend,
   68.2% card, and 25-row table intact while only the new diagnostics show unavailable states.
 - No commit, push, or public deployment was performed.
+
+---
+
+## Follow-up 2026-08-21 — one attribution block for the dashboard
+
+- [x] Remove repeated methodology, source, credit, and repository blocks from individual charts
+- [x] Consolidate shared methodology and provenance at the bottom of the dashboard
+- [x] Remove the Texty links and labels from the dashboard interface
+- [x] Verify syntax and responsive rendering after the layout change
+
+### Review
+
+The dashboard now has one shared five-line methodology and provenance footer after both tab panels.
+All five per-chart caption blocks and every Texty link/label were removed; chart-specific definitions
+remain available through the existing info buttons. Browser checks at 1440 and 320 px found one
+footer, zero repeated captions, zero Texty mentions, no console warnings/errors, and no page-level
+horizontal overflow. Inline JavaScript syntax and `git diff --check` pass.
+
+---
+
+## Follow-up 2026-08-21 — reveal scatter-plot variation
+
+- [x] Replace the fixed 0–100% mobilisation and discipline axes with data-adaptive bounds
+- [x] Round bounds to readable five-percentage-point steps and keep a small margin around the data
+- [x] Disclose the adaptive axes in the chart info and accessible description
+- [x] Verify multiple date ranges, syntax, and rendering at 320 and 1440 px
+
+### Review
+
+For the latest day, the visible ranges now tighten from 0–100% to 35–85% mobilisation and
+90–100% discipline. Across the full convocation they become 35–85% and 80–100%, respectively,
+so the scale continues to follow the filtered data. Browser checks at 1440 and 320 px show readable
+ticks and direct labels, no page overflow, and no console warnings/errors. The axis ranges are also
+included in the canvas accessibility description. Inline JavaScript syntax and `git diff --check`
+pass.

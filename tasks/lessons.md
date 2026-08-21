@@ -81,3 +81,15 @@ the code and asset are compatible; it does not prove the asset is reachable from
 entry point. New companion assets need either an explicit launch requirement or a safe authoritative
 fallback. For this dashboard, the compact generated JSON is the fast path and the official Rada CSV
 is the fallback.
+
+### Keep dashboard attribution global unless the chart must travel alone
+Repeating methodology, source, credit, and repository under every chart made the diagnostics feel
+heavier than the data. For this interactive dashboard, keep chart-specific explanations in the
+nearby info button and place shared provenance once at the bottom. Do not add publication links or
+external “context” labels unless the user explicitly asks for them.
+
+### A percentage scale need not start at zero in a relationship chart
+The mobilisation × discipline scatter used a fixed 0–100% frame even when every faction occupied a
+narrow band. That preserved the theoretical range but erased the comparison the chart exists to
+show. For scatter plots, derive both axis bounds from the visible data, add a small rounded margin,
+and disclose the adaptive scale; keep 0–100% for encodings where length or area is judged from zero.

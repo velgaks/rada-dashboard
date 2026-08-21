@@ -385,16 +385,19 @@
       border-radius: 2px;
       margin-left: .35rem;
     }
-    .chart-caption {
-      margin-top: .9rem;
+    .dashboard-footer {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(137, 135, 129, .25);
       color: var(--muted);
       font-family: 'IBM Plex Sans', sans-serif;
       font-size: .67rem;
       line-height: 1.45;
     }
-    .chart-caption .credit { color: #a8b1c1; font-weight: 600; }
-    .chart-caption a { color: #a8b1c1; text-decoration: none; }
-    .chart-caption a:hover { text-decoration: underline; }
+    .dashboard-footer .method-note + .method-note { margin-top: .2rem; }
+    .dashboard-footer .credit { color: #a8b1c1; font-weight: 600; }
+    .dashboard-footer a { color: #a8b1c1; text-decoration: none; overflow-wrap: anywhere; }
+    .dashboard-footer a:hover { text-decoration: underline; }
     /* ── Faction attendance heatmap ── */
     .faction-heatmap { font-family: 'IBM Plex Mono', monospace; font-size: .72rem; overflow-x: auto; max-width: 100%; }
     .faction-lag {
@@ -616,7 +619,7 @@
     @media (max-width: 600px) {
       .section-title { align-items: flex-start; flex-wrap: wrap; }
       .scope-badge { margin-left: 0; }
-      .chart-caption { font-size: .64rem; }
+      .dashboard-footer { font-size: .64rem; }
       .heatmap-scale-wrap { margin-left: 82px; }
     }
 
@@ -771,8 +774,8 @@
       .header-title { width: 100%; }
       .header-title h1 { font-size: 1.4rem; }
       .card-value { font-size: 1.7rem; }
-      .cards { grid-template-columns: 1fr 1fr; }
-      .card { border-right: none; }
+      .cards { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+      .card { min-width: 0; border-right: none; overflow-wrap: anywhere; }
       .card:nth-child(odd) { border-right: 1px solid var(--border); }
       header { flex-direction: column; align-items: flex-start; }
       .header-filter { width: 100%; }
@@ -866,20 +869,14 @@
       <div class="chart-wrap">
         <canvas id="capacityTrendChart" role="img" aria-label="Місячний тренд частки голосувань із щонайменше 226 активними депутатами"></canvas>
       </div>
-      <div class="chart-caption" id="capacity-caption">
-        <div>Поправки й реєстрації виключено; сигнальні голосування включено.</div>
-        <div><span class="credit">Графік: Valentyn Hatsko, TG: @gorbach_squad.</span> Джерело: data.rada.gov.ua, <span id="capacity-source-date">дата уточнюється</span></div>
-        <div>Дані, код і метод: <a href="https://github.com/velgaks/rada-dashboard" target="_blank" rel="noopener">github.com/velgaks/rada-dashboard</a></div>
-      </div>
     </div>
 
     <div class="diagnostics-grid">
       <div class="chart-card">
         <div class="section-title"><span class="title-text">Фракції частіше втрачають голоси через неучасть, а не через внутрішній розкол</span><span class="scope-badge">всі ініціатори</span>
-          <button class="info-btn" tabindex="0">i<div class="info-popup">По горизонталі — частка активних голосів від усіх депутат-голосувань фракції. По вертикалі — частка депутатів, що голосували разом із більшістю своєї фракції; рівні розколи та голосування з низькою активністю не формують напрям фракції.</div></button>
+          <button class="info-btn" tabindex="0">i<div class="info-popup">По горизонталі — частка активних голосів від усіх депутат-голосувань фракції. По вертикалі — частка депутатів, що голосували разом із більшістю своєї фракції; рівні розколи та голосування з низькою активністю не формують напрям фракції. Межі обох осей підлаштовуються під фактичний діапазон значень.</div></button>
         </div>
         <div class="diagnostic-wrap"><canvas id="factionHealthChart" role="img" tabindex="0" aria-label="Порівняння мобілізації та дисципліни фракцій"></canvas></div>
-        <div class="chart-caption diagnostics-caption"><div>Дисципліна рахується лише там, де визначено напрям більшості фракції. <a href="https://texty.org.ua/projects/117724/tykhyi-kolaps-verkhovnoi-rady-chomu-parlament-dedali-hirshe-ukhvaliuye-zakony/" target="_blank" rel="noopener">Контекст: Texty</a>.</div><div><span class="credit">Графік: Valentyn Hatsko, TG: @gorbach_squad.</span> Джерело: data.rada.gov.ua, <span class="diag-source-date">дата уточнюється</span></div><div>Дані, код і метод: <a href="https://github.com/velgaks/rada-dashboard" target="_blank" rel="noopener">github.com/velgaks/rada-dashboard</a></div></div>
       </div>
 
       <div class="chart-card">
@@ -888,7 +885,6 @@
         </div>
         <div class="chart-key" aria-hidden="true"><span><i style="background:#86b6ef"></i>присутні</span><span><i style="background:#eb6834"></i>активно голосували</span></div>
         <div class="diagnostic-wrap"><canvas id="presenceGapChart" role="img" tabindex="0" aria-label="Розрив між формальною присутністю й активним голосуванням за фракціями"></canvas></div>
-        <div class="chart-caption diagnostics-caption"><div>Активні: «за», «проти» або «утримались»; присутні додатково включають «не голосував». <a href="https://texty.org.ua/projects/117724/tykhyi-kolaps-verkhovnoi-rady-chomu-parlament-dedali-hirshe-ukhvaliuye-zakony/" target="_blank" rel="noopener">Контекст: Texty</a>.</div><div><span class="credit">Графік: Valentyn Hatsko, TG: @gorbach_squad.</span> Джерело: data.rada.gov.ua, <span class="diag-source-date">дата уточнюється</span></div><div>Дані, код і метод: <a href="https://github.com/velgaks/rada-dashboard" target="_blank" rel="noopener">github.com/velgaks/rada-dashboard</a></div></div>
       </div>
 
       <div class="chart-card diagnostics-wide">
@@ -897,7 +893,6 @@
         </div>
         <div id="factionHeatmap" class="faction-heatmap"></div>
         <div id="heatmapStatus" class="heatmap-status" role="status" aria-live="polite"></div>
-        <div class="chart-caption diagnostics-caption"><div>Безперервна шкала 0–100%; останні 15 дат у вибраному періоді. <a href="https://texty.org.ua/projects/117724/tykhyi-kolaps-verkhovnoi-rady-chomu-parlament-dedali-hirshe-ukhvaliuye-zakony/" target="_blank" rel="noopener">Контекст: Texty</a>.</div><div><span class="credit">Графік: Valentyn Hatsko, TG: @gorbach_squad.</span> Джерело: data.rada.gov.ua, <span class="diag-source-date">дата уточнюється</span></div><div>Дані, код і метод: <a href="https://github.com/velgaks/rada-dashboard" target="_blank" rel="noopener">github.com/velgaks/rada-dashboard</a></div></div>
       </div>
 
       <div class="chart-card diagnostics-wide">
@@ -911,7 +906,6 @@
           </div>
           <div class="diagnostic-wrap compact"><canvas id="partnerSupportChart" role="img" tabindex="0" aria-label="Нормована підтримка партнерів у залежних голосуваннях"></canvas></div>
         </div>
-        <div class="chart-caption diagnostics-caption"><div>Підтримка = «за» / можливості; кілька партнерів можуть бути необхідними одночасно, тому їхні випадки не сумуються. <a href="https://texty.org.ua/projects/117724/tykhyi-kolaps-verkhovnoi-rady-chomu-parlament-dedali-hirshe-ukhvaliuye-zakony/" target="_blank" rel="noopener">Контекст: Texty</a>.</div><div><span class="credit">Графік: Valentyn Hatsko, TG: @gorbach_squad.</span> Джерело: data.rada.gov.ua, <span class="diag-source-date">дата уточнюється</span></div><div>Дані, код і метод: <a href="https://github.com/velgaks/rada-dashboard" target="_blank" rel="noopener">github.com/velgaks/rada-dashboard</a></div></div>
       </div>
     </div>
 
@@ -974,6 +968,14 @@
       </table>
     </div>
   </div><!-- /tab-table -->
+
+  <footer class="dashboard-footer" aria-label="Методологія, джерела й авторство">
+    <div class="method-note">Поправки й реєстрації виключено; сигнальні голосування включено лише до показника 226.</div>
+    <div class="method-note">Активні: «за», «проти» або «утримались». Дисципліну рахуємо лише за визначеного напряму більшості фракції.</div>
+    <div class="method-note">Теплова карта показує останні 15 дат. Підтримка партнерів = голоси «за» / депутатські можливості.</div>
+    <div><span class="credit">Графік: Valentyn Hatsko, TG: @gorbach_squad.</span> Джерело: data.rada.gov.ua; голосування — <span id="capacity-source-date">дата уточнюється</span>, фракції — <span id="diagnostics-source-date">дата уточнюється</span>.</div>
+    <div>Дані, код і метод: <a href="https://github.com/velgaks/rada-dashboard" target="_blank" rel="noopener">github.com/velgaks/rada-dashboard</a></div>
+  </footer>
 
 </div>
 
@@ -1700,6 +1702,22 @@
     return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
   }
 
+  function percentScaleBounds(values) {
+    const finite = values.filter(Number.isFinite);
+    if (!finite.length) return { min: 0, max: 100 };
+    const dataMin = Math.min(...finite);
+    const dataMax = Math.max(...finite);
+    const paddedSpan = Math.max(dataMax - dataMin, 4);
+    const padding = Math.max(1, paddedSpan * .12);
+    let min = Math.max(0, Math.floor((dataMin - padding) / 5) * 5);
+    let max = Math.min(100, Math.ceil((dataMax + padding) / 5) * 5);
+    if (max - min < 5) {
+      min = Math.max(0, min - 5);
+      max = Math.min(100, max + 5);
+    }
+    return { min, max };
+  }
+
   function renderFactionHealthChart(diagnostics) {
     const canvasId = 'factionHealthChart';
     const points = Object.entries(diagnostics?.factions || {}).flatMap(([fid, metrics]) => {
@@ -1717,10 +1735,14 @@
       return;
     }
     setChartNote(canvasId, null);
+    const xBounds = percentScaleBounds(points.map(point => point.x));
+    const yBounds = percentScaleBounds(points.map(point => point.y));
     const canvas = document.getElementById(canvasId);
+    canvas.dataset.xRange = `${xBounds.min}–${xBounds.max}%`;
+    canvas.dataset.yRange = `${yBounds.min}–${yBounds.max}%`;
     canvas.setAttribute('aria-label', 'Мобілізація та дисципліна фракцій. ' + points
       .map(point => `${shortFactionName(point.fid)}: активність ${point.x.toFixed(1)}%, дисципліна ${point.y.toFixed(1)}%`)
-      .join('; ') + '.');
+      .join('; ') + `. Межі осей: активність ${xBounds.min}–${xBounds.max}%, дисципліна ${yBounds.min}–${yBounds.max}%.`);
     if (factionHealthInstance) factionHealthInstance.destroy();
     factionHealthInstance = new Chart(canvas.getContext('2d'), {
       type: 'scatter',
@@ -1743,10 +1765,10 @@
           } },
         },
         scales: {
-          x: { min: 0, max: 100, grid: { display: false }, border: { display: false },
+          x: { min: xBounds.min, max: xBounds.max, grid: { display: false }, border: { display: false },
             title: { display: true, text: 'активна участь', color: '#898781' },
             ticks: { color: '#898781', callback: value => value + '%', maxTicksLimit: 5 } },
-          y: { min: 0, max: 100, grid: { display: false }, border: { display: false },
+          y: { min: yBounds.min, max: yBounds.max, grid: { display: false }, border: { display: false },
             title: { display: true, text: 'дисципліна', color: '#898781' },
             ticks: { color: '#898781', callback: value => value + '%', maxTicksLimit: 5 } },
         },
@@ -1866,7 +1888,8 @@
   function updateDiagnosticsSourceDate() {
     const value = factionDiagnostics?.meta?.retrieved_at || factionDiagnostics?.meta?.generated_at || '';
     const text = value ? formatRetrievedDate(value) : 'дату отримання не вказано';
-    document.querySelectorAll('.diag-source-date').forEach(element => { element.textContent = text; });
+    const element = document.getElementById('diagnostics-source-date');
+    if (element) element.textContent = text;
   }
 
   function renderDiagnostics(diagnostics, dateFrom, dateTo) {
@@ -1995,7 +2018,10 @@
   function formatRetrievedDate(value) {
     const date = value ? new Date(value) : null;
     if (!date || Number.isNaN(date.getTime())) return 'дату отримання не вказано';
-    return 'отримано ' + new Intl.DateTimeFormat('uk-UA', { month: 'long', year: 'numeric' }).format(date);
+    const formatted = new Intl.DateTimeFormat('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })
+      .format(date)
+      .replace(/\s*р\.$/, '');
+    return 'оновлено ' + formatted;
   }
 
   function renderCapacityTrend(rows) {
