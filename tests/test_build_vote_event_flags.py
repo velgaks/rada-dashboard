@@ -3,6 +3,7 @@ import json
 import unittest
 
 from build_vote_event_flags import (
+    SCHEMA_VERSION,
     build_payload,
     is_amendment_name,
     parse_csv,
@@ -30,9 +31,19 @@ class AmendmentClassifierTests(unittest.TestCase):
     def test_does_not_match_legal_title_with_word_amendment(self):
         self.assertFalse(
             is_amendment_name(
-                "Проект Закону про Поправку до Монреальського протоколу"
+                "Поіменне голосування про проект Закону про ратифікацію "
+                "Поправки до Монреальського протоколу - за основу"
             )
         )
+
+    def test_recognises_narrow_unnumbered_amendment_actions(self):
+        names = [
+            "Поіменне голосування про поправку до проекту Закону про бюджет",
+            "  ПОІМЕННЕ ГОЛОСУВАННЯ ПРО ПОПРАВКУ ДО ПРОЄКТУ ЗАКОНУ про освіту  ",
+        ]
+        for name in names:
+            with self.subTest(name=name):
+                self.assertTrue(is_amendment_name(name))
 
 
 class PayloadTests(unittest.TestCase):
@@ -43,7 +54,8 @@ class PayloadTests(unittest.TestCase):
 2026-08-20,3,2026-08-20T10:04:00,1,2026-08-20T10:05:00,Електронна реєстрація,103
 2026-08-20,4,2026-08-20T10:06:00,0,2026-08-20T10:07:00,Проект Закону про Поправку до Монреальського протоколу,104
 2026-08-20,5,2026-08-20T10:08:00,0,2026-08-20T10:09:00,Сигнальне голосування,105
-2026-08-20,6,2026-08-20T10:10:00,8,2026-08-20T10:11:00,Виступ депутата,
+2026-08-20,6,2026-08-20T10:10:00,0,2026-08-20T10:11:00,Поіменне голосування про поправку до проєкту Закону про освіту,106
+2026-08-20,7,2026-08-20T10:12:00,8,2026-08-20T10:13:00,Виступ депутата,
 """
         payload = parse_csv(
             io.StringIO(csv_text),
@@ -51,13 +63,14 @@ class PayloadTests(unittest.TestCase):
             source_last_modified="Thu, 20 Aug 2026 10:56:09 GMT",
         )
 
-        self.assertEqual(payload["named_vote_ids"], [101, 102, 104, 105])
-        self.assertEqual(payload["amendment_ids"], [102])
+        self.assertEqual(payload["meta"]["schema_version"], SCHEMA_VERSION)
+        self.assertEqual(payload["named_vote_ids"], [101, 102, 104, 105, 106])
+        self.assertEqual(payload["amendment_ids"], [102, 106])
         self.assertEqual(payload["meta"]["min_date"], "2026-08-20")
         self.assertEqual(payload["meta"]["max_date"], "2026-08-20")
         self.assertEqual(
             payload["meta"]["counts"],
-            {"rows": 6, "named_votes": 4, "amendments": 1, "registrations": 1},
+            {"rows": 7, "named_votes": 5, "amendments": 2, "registrations": 1},
         )
 
     def test_output_is_deterministic_and_ids_are_sorted_and_deduplicated(self):

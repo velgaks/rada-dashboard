@@ -1,6 +1,9 @@
 # Next Improvements — Верховна Рада Dashboard
 
-Already implemented: bill search, URL persistence, bar highlight, donut chart, date range selector (with presets + native date inputs), progressive table rendering, date column in rows, charts responsive to date range, C1 faction % За trend lines, C2 pass rate bar chart, C3 coalition dependency stacked area (monthly), info popup tooltips on all charts, consistent faction colors across charts.
+Already implemented: bill search, URL persistence, date range selector, progressive table rendering,
+CSV export, the 226-active-deputy capacity trend, faction mobilisation/discipline diagnostics,
+silent-presence comparison, and normalised partner-dependence analysis. Output and agenda charts
+remain available as secondary context rather than headline measures of parliamentary health.
 
 ---
 
@@ -19,13 +22,17 @@ Implemented as % bills passed per session (green ≥70%, yellow 40-70%, red <40%
 
 ---
 
-### C3. ✅ DONE — Coalition dependency stacked area
-Implemented as stacked **area** chart (not bar) with monthly aggregation. Shows faction "За" contributions with quorum line at 226. Falls back to daily view when only 1 month selected.
+### C3. ✅ REPLACED 2026-08-20 — Partner dependence
+The raw stacked area mixed faction size with support and did not identify dependence. It was
+replaced by the share of successful law-stage votes where Слуга народу lacked its own 226,
+plus each partner's normalised support rate and strictly-necessary-vote count.
 
 ---
 
-### C4. ✅ DONE — Faction participation heatmap
-Implemented as factions × sessions grid with an **active / present** toggle, active participation as the default, and a continuous 0–100% sequential scale. Shows the last 15 sessions in the selected range.
+### C4. ✅ REFINED 2026-08-20 — Faction participation heatmap
+The heatmap now shows active participation only, on named working votes without amendments,
+registrations or signals. A separate presence-to-activity dumbbell exposes the exact
+"registered but did not vote" gap without requiring a mode toggle.
 
 ### Capacity trend. ✅ DONE 2026-08-20 — Can the Rada muster 226 active MPs?
 Monthly share of named, non-amendment votes where `for + against + abstain >= 226`. Uses compact official event classification, excludes registrations, includes signal votes, and marks an incomplete current month.
@@ -40,11 +47,11 @@ Monthly share of named, non-amendment votes where `for + against + abstain >= 22
 
 ---
 
-### C6. Faction discipline score *(needs new Python script)*
-**What:** Bar chart — for each faction, what % of deputies voted with the faction majority on each bill? Shows which factions are united blocs vs. loose coalitions.
-**Data:** Pre-process TSV → `faction_discipline.json`
-**Script:** `build_faction_discipline.py` (~2 hour effort)
-**Reference:** Rada4You tracks this live — found 19.7% overall against-faction vote rate.
+### C6. ✅ DONE 2026-08-20 — Mobilisation × faction discipline
+Implemented as a scatter plot rather than an isolated score. Mobilisation is active members over
+all member-vote opportunities; discipline is the member-vote-weighted share matching the unique
+modal active choice. Ties and faction-votes with fewer than two active deputies are excluded and
+reported. This separates failure to turn out from genuine internal disagreement.
 
 ---
 
@@ -74,7 +81,8 @@ the file as ANSI and mangles Cyrillic.
 ---
 
 ### 2. ✅ DONE — Faction / party breakdown
-Replaced by C1 (trend lines) and C3 (coalition stacked area). Old raw-count stacked bar removed.
+Replaced by C1 trend lines plus the normalised health and partner-dependence diagnostics. Old
+raw-count stacked bar and coalition area were removed.
 
 ---
 
@@ -162,8 +170,9 @@ Implemented: Останнє | Місяць | 3 місяці | Весь час.
 |---|---------|--------|--------|--------|
 | C1 | Faction % За trend lines | ✅ Done | — | — |
 | C2 | Pass rate bar chart | ✅ Done | — | — |
-| C3 | Coalition dependency stacked area | ✅ Done | — | — |
-| C4 | Faction participation heatmap | ✅ Done | — | — |
+| C3 | Normalised partner dependence | ✅ Replaced 2026-08-20 | — | — |
+| C4 | Active-participation heatmap + silent-presence gap | ✅ Refined 2026-08-20 | — | — |
+| C6 | Mobilisation × faction discipline | ✅ Done 2026-08-20 | — | — |
 | C5 | Initiator pass rate line chart | ✅ Done | — | — |
 | 2 | Faction breakdown | ✅ Done (via C1+C3) | — | — |
 | 8 | Preset buttons | ✅ Done | — | — |
@@ -184,13 +193,13 @@ Implemented: Останнє | Місяць | 3 місяці | Весь час.
 | P1 | Mobile brush touch events | Low | Critical | UX |
 | P2 | Per-vote faction breakdown (row expand/click) | High | Critical | Political, UX |
 | P3 | Faction pairwise similarity matrix | Medium (Python) | Very High | Political |
-| P4 | Faction discipline/cohesion score | Medium (Python) | High | Political |
+| P4 | Faction discipline/cohesion score | ✅ Done 2026-08-20 | High | Political |
 | P5 | chart.update() instead of destroy/recreate | Medium | High | Frontend |
 | P6 | Cache 10MB agenda JSON (Cache API/IndexedDB) | Medium | High | Frontend |
 | P7 | Build date-indexed Map for O(1) lookups | Low | High | Frontend |
 | P8 | Export filtered data to CSV | ✅ Done 2026-08-05 | High | UX |
-| P9 | "Actively voted" vs "registered" heatmap toggle | ✅ Done 2026-08-20 | Medium | Political |
-| P10 | Exclude procedural votes from aggregates by default | Low | Medium | Political |
+| P9 | "Actively voted" vs "registered" comparison | ✅ Done 2026-08-20 | Medium | Political |
+| P10 | Exclude procedural votes from legacy/output aggregates by default | Low | Medium | Political |
 | P11 | ARIA roles + canvas labels (accessibility) | Medium | Medium | UX |
 | P12 | Deputy scatter/PCA (UMAP) | High | Very High | Political |
 | P13 | Cross-filter: faction voting by initiator type | Medium (Python) | High | Political |

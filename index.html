@@ -373,6 +373,7 @@
       min-width: 0;
     }
     .chart-wrap canvas { max-width: 100% !important; }
+    canvas[role="img"]:focus-visible { outline: 2px solid var(--ua-yellow); outline-offset: 3px; }
     .scope-badge {
       font-size: .65rem;
       color: var(--muted);
@@ -404,7 +405,7 @@
     }
     .heatmap-row { display: flex; align-items: center; gap: 2px; margin-bottom: 2px; }
     .heatmap-label {
-      width: 76px; min-width: 76px; color: var(--muted); font-size: .68rem;
+      width: 104px; min-width: 104px; color: var(--muted); font-size: .68rem;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       text-align: right; padding-right: 6px;
     }
@@ -413,7 +414,7 @@
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
     }
     .heatmap-cell:focus-visible { outline: 2px solid var(--ua-yellow); outline-offset: 1px; }
-    .heatmap-header { display: flex; align-items: flex-end; gap: 2px; margin-bottom: 4px; padding-left: 82px; }
+    .heatmap-header { display: flex; align-items: flex-end; gap: 2px; margin-bottom: 4px; padding-left: 110px; }
     .heatmap-col-label {
       width: 14px; min-width: 14px; font-size: .6rem; color: var(--muted);
       writing-mode: vertical-rl; text-orientation: mixed; transform: rotate(180deg);
@@ -423,7 +424,7 @@
       display: flex;
       align-items: center;
       gap: .45rem;
-      margin: .65rem 0 0 82px;
+      margin: .65rem 0 0 110px;
       color: var(--muted);
       font-size: .62rem;
       white-space: nowrap;
@@ -437,10 +438,106 @@
     }
     .heatmap-status {
       min-height: 1.1rem;
-      margin: .45rem 0 0 82px;
+      margin: .45rem 0 0 110px;
       color: var(--text-secondary);
       font-size: .68rem;
       line-height: 1.4;
+    }
+
+    /* ── Faction health diagnostics ── */
+    .diagnostics-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 0 2.5rem;
+    }
+    .diagnostics-grid .chart-card { min-width: 0; }
+    .diagnostics-wide { grid-column: 1 / -1; }
+    .diagnostic-wrap { position: relative; height: 320px; min-width: 0; }
+    .diagnostic-wrap.compact { height: 280px; }
+    .chart-key {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .45rem 1rem;
+      margin: -.35rem 0 .65rem;
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .66rem;
+    }
+    .chart-key span { display: inline-flex; align-items: center; gap: .35rem; }
+    .chart-key i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dependency-strip {
+      display: flex;
+      width: 100%;
+      height: 34px;
+      overflow: hidden;
+      border-radius: 2px;
+      background: rgba(37,45,61,.35);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+    }
+    .dependency-segment {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 .45rem;
+      color: #f8fafc;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .68rem;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .dependency-segment.alone { background: #2a78d6; }
+    .dependency-segment.dependent { background: #eb6834; }
+    .dependency-segment.other { background: #586274; }
+    .dependency-summary {
+      margin-top: .55rem;
+      color: var(--muted);
+      font-size: .72rem;
+      line-height: 1.5;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    .partner-layout {
+      display: grid;
+      grid-template-columns: minmax(240px, .72fr) minmax(0, 1.28fr);
+      gap: 1.5rem;
+      align-items: start;
+    }
+    .secondary-analysis {
+      margin: 2rem 0 1rem;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .secondary-analysis > summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 1rem 0;
+      color: var(--muted);
+      font-family: var(--serif);
+      font-weight: 700;
+      font-style: italic;
+    }
+    .secondary-analysis > summary::-webkit-details-marker { display: none; }
+    .secondary-analysis > summary::before { content: '+ '; color: var(--accent); }
+    .secondary-analysis[open] > summary::before { content: '−  '; }
+    .secondary-analysis .secondary-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 0 2.5rem;
+    }
+    .secondary-metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+      padding: .35rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .secondary-metric { color: var(--muted); font-size: .7rem; font-family: 'IBM Plex Mono', monospace; }
+    .secondary-metric strong { display: block; margin-top: .25rem; color: var(--text); font-size: 1.2rem; font-weight: 400; }
+    .card-scope {
+      display: block;
+      margin-top: .22rem;
+      color: var(--muted);
+      font-size: .62rem;
     }
 
     /* ── Table section ── */
@@ -521,6 +618,21 @@
       .scope-badge { margin-left: 0; }
       .chart-caption { font-size: .64rem; }
       .heatmap-scale-wrap { margin-left: 82px; }
+    }
+
+    @media (max-width: 800px) {
+      .diagnostics-grid,
+      .secondary-analysis .secondary-grid,
+      .partner-layout { grid-template-columns: 1fr; }
+      .diagnostics-wide { grid-column: auto; }
+      .partner-layout { gap: .75rem; }
+    }
+
+    @media (max-width: 600px) {
+      .diagnostic-wrap { height: 290px; }
+      .diagnostic-wrap.compact { height: 260px; }
+      .dependency-segment { font-size: .6rem; padding: 0 .25rem; }
+      .secondary-metrics { grid-template-columns: 1fr; gap: .55rem; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -724,141 +836,112 @@
     <!-- Metric cards -->
     <div class="cards">
       <div class="card">
-        <div class="card-label">Прийнято</div>
-        <div class="card-value green" id="m-passed">—</div>
-        <div class="card-sub">рішень за період</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Провалено</div>
-        <div class="card-value red" id="m-failed">—</div>
-        <div class="card-sub">рішень за період</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Середній % «за»</div>
-        <div class="card-value" id="m-avg-for">—</div>
-        <div class="card-sub">від присутніх</div>
-      </div>
-      <div class="card">
         <div class="card-label">Достатня активність</div>
         <div class="card-value" id="m-capacity">—</div>
-        <div class="card-sub" id="m-capacity-sub">≥226 активних · без поправок</div>
+        <div class="card-sub"><span id="m-capacity-sub">≥226 активних · без поправок</span><span class="card-scope">за вибраною датою та ініціатором</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Активна участь</div>
+        <div class="card-value" id="m-active">—</div>
+        <div class="card-sub" id="m-active-sub">«за» + «проти» + «утримались»<span class="card-scope">всі ініціатори</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Мовчазна присутність</div>
+        <div class="card-value" id="m-silent">—</div>
+        <div class="card-sub" id="m-silent-sub">зареєстровані, але не голосували · серед присутніх<span class="card-scope">всі ініціатори</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Залежність від партнерів</div>
+        <div class="card-value" id="m-dependent">—</div>
+        <div class="card-sub" id="m-dependent-sub">успішні голосування за закони, де СН бракувало власних голосів<span class="card-scope">всі ініціатори</span></div>
       </div>
     </div>
 
-    <!-- Charts -->
-    <div class="charts-grid">
-      <div class="chart-card">
-        <div class="section-title" id="capacity-trend-title">
-          <span class="title-text">Після 2023 року Раді дедалі частіше бракує 226 активних депутатів</span>
-          <span class="scope-badge">весь період · всі ініціатори</span>
-          <button class="info-btn" tabindex="0">i<div class="info-popup">Частка поіменних голосувань, у яких щонайменше 226 депутатів натиснули «за», «проти» або «утримався». Поправки й електронні реєстрації виключено; сигнальні голосування включено.</div></button>
-        </div>
-        <div class="chart-wrap">
-          <canvas id="capacityTrendChart" role="img" aria-label="Місячний тренд частки голосувань із щонайменше 226 активними депутатами"></canvas>
-        </div>
-        <div class="chart-caption" id="capacity-caption">
-          <div>Поправки й реєстрації виключено; сигнальні голосування включено.</div>
-          <div><span class="credit">Графік: Valentyn Hatsko, TG: @gorbach_squad.</span> Джерело: data.rada.gov.ua, <span id="capacity-source-date">дата уточнюється</span></div>
-          <div>Дані, код і метод: <a href="https://github.com/velgaks/rada-dashboard" target="_blank" rel="noopener">github.com/velgaks/rada-dashboard</a></div>
-        </div>
+    <div class="chart-card" style="margin-bottom:1rem">
+      <div class="section-title" id="capacity-trend-title">
+        <span class="title-text">Після 2023 року Раді дедалі частіше бракує 226 активних депутатів</span>
+        <span class="scope-badge">весь період · всі ініціатори</span>
+        <button class="info-btn" tabindex="0">i<div class="info-popup">Частка поіменних голосувань, у яких щонайменше 226 депутатів натиснули «за», «проти» або «утримався». Поправки й електронні реєстрації виключено; сигнальні голосування включено.</div></button>
       </div>
-      <div class="chart-card">
-        <div class="section-title" id="for-title"><span class="title-text">Середні голоси «за» по датах</span>
-          <button class="info-btn" tabindex="0">i<div class="info-popup">Середня кількість голосів «за» на одне голосування за кожне засідання. Пунктирна лінія — 226 (мінімум для прийняття рішення).</div></button>
-        </div>
-        <div class="chart-wrap">
-          <canvas id="forChart"></canvas>
-        </div>
+      <div class="chart-wrap">
+        <canvas id="capacityTrendChart" role="img" aria-label="Місячний тренд частки голосувань із щонайменше 226 активними депутатами"></canvas>
       </div>
+      <div class="chart-caption" id="capacity-caption">
+        <div>Поправки й реєстрації виключено; сигнальні голосування включено.</div>
+        <div><span class="credit">Графік: Valentyn Hatsko, TG: @gorbach_squad.</span> Джерело: data.rada.gov.ua, <span id="capacity-source-date">дата уточнюється</span></div>
+        <div>Дані, код і метод: <a href="https://github.com/velgaks/rada-dashboard" target="_blank" rel="noopener">github.com/velgaks/rada-dashboard</a></div>
+      </div>
+    </div>
+
+    <div class="diagnostics-grid">
       <div class="chart-card">
-        <div class="section-title" id="faction-heatmap-title">
-          <span class="title-text">Активна участь по фракціях</span><span class="unfiltered-badge">всі ініціатори</span>
-          <div class="metric-toggle" id="heatmapMetricToggle" role="group" aria-label="Показник участі" style="margin-left:auto">
-            <button class="metric-btn active" data-heatmap-metric="active" aria-pressed="true">Активні</button>
-            <button class="metric-btn" data-heatmap-metric="present" aria-pressed="false">Присутні</button>
-          </div>
-          <button class="info-btn" tabindex="0">i<div class="info-popup">Активні = «за» + «проти» + «утримались». Присутні додатково включають тих, хто не голосував. Знаменник включає також відсутніх; колір показує безперервну шкалу 0–100%.</div></button>
+        <div class="section-title"><span class="title-text">Фракції частіше втрачають голоси через неучасть, а не через внутрішній розкол</span><span class="scope-badge">всі ініціатори</span>
+          <button class="info-btn" tabindex="0">i<div class="info-popup">По горизонталі — частка активних голосів від усіх депутат-голосувань фракції. По вертикалі — частка депутатів, що голосували разом із більшістю своєї фракції; рівні розколи та голосування з низькою активністю не формують напрям фракції.</div></button>
+        </div>
+        <div class="diagnostic-wrap"><canvas id="factionHealthChart" role="img" tabindex="0" aria-label="Порівняння мобілізації та дисципліни фракцій"></canvas></div>
+        <div class="chart-caption diagnostics-caption"><div>Дисципліна рахується лише там, де визначено напрям більшості фракції. <a href="https://texty.org.ua/projects/117724/tykhyi-kolaps-verkhovnoi-rady-chomu-parlament-dedali-hirshe-ukhvaliuye-zakony/" target="_blank" rel="noopener">Контекст: Texty</a>.</div><div><span class="credit">Графік: Valentyn Hatsko, TG: @gorbach_squad.</span> Джерело: data.rada.gov.ua, <span class="diag-source-date">дата уточнюється</span></div><div>Дані, код і метод: <a href="https://github.com/velgaks/rada-dashboard" target="_blank" rel="noopener">github.com/velgaks/rada-dashboard</a></div></div>
+      </div>
+
+      <div class="chart-card">
+        <div class="section-title"><span class="title-text">Розрив між присутністю й дією показує приховану пасивність</span><span class="scope-badge">всі ініціатори</span>
+          <button class="info-btn" tabindex="0">i<div class="info-popup">Для кожної фракції порівнюються формальна присутність та активне голосування. Відстань між точками — частка депутатів, які були зареєстровані, але не натиснули жодної змістовної кнопки.</div></button>
+        </div>
+        <div class="chart-key" aria-hidden="true"><span><i style="background:#86b6ef"></i>присутні</span><span><i style="background:#eb6834"></i>активно голосували</span></div>
+        <div class="diagnostic-wrap"><canvas id="presenceGapChart" role="img" tabindex="0" aria-label="Розрив між формальною присутністю й активним голосуванням за фракціями"></canvas></div>
+        <div class="chart-caption diagnostics-caption"><div>Активні: «за», «проти» або «утримались»; присутні додатково включають «не голосував». <a href="https://texty.org.ua/projects/117724/tykhyi-kolaps-verkhovnoi-rady-chomu-parlament-dedali-hirshe-ukhvaliuye-zakony/" target="_blank" rel="noopener">Контекст: Texty</a>.</div><div><span class="credit">Графік: Valentyn Hatsko, TG: @gorbach_squad.</span> Джерело: data.rada.gov.ua, <span class="diag-source-date">дата уточнюється</span></div><div>Дані, код і метод: <a href="https://github.com/velgaks/rada-dashboard" target="_blank" rel="noopener">github.com/velgaks/rada-dashboard</a></div></div>
+      </div>
+
+      <div class="chart-card diagnostics-wide">
+        <div class="section-title" id="faction-heatmap-title"><span class="title-text">Коли фракції випадали з голосувань</span><span class="scope-badge">всі ініціатори</span>
+          <button class="info-btn" tabindex="0">i<div class="info-popup">Кожна комірка показує частку активних голосів фракції: «за» + «проти» + «утримались», поділені на всі депутат-голосування. Показано останні 15 дат у вибраному періоді.</div></button>
         </div>
         <div id="factionHeatmap" class="faction-heatmap"></div>
         <div id="heatmapStatus" class="heatmap-status" role="status" aria-live="polite"></div>
+        <div class="chart-caption diagnostics-caption"><div>Безперервна шкала 0–100%; останні 15 дат у вибраному періоді. <a href="https://texty.org.ua/projects/117724/tykhyi-kolaps-verkhovnoi-rady-chomu-parlament-dedali-hirshe-ukhvaliuye-zakony/" target="_blank" rel="noopener">Контекст: Texty</a>.</div><div><span class="credit">Графік: Valentyn Hatsko, TG: @gorbach_squad.</span> Джерело: data.rada.gov.ua, <span class="diag-source-date">дата уточнюється</span></div><div>Дані, код і метод: <a href="https://github.com/velgaks/rada-dashboard" target="_blank" rel="noopener">github.com/velgaks/rada-dashboard</a></div></div>
       </div>
-    </div>
 
-
-    <!-- C1: Faction "За" rate trend lines -->
-    <div class="chart-card" style="margin-bottom:2rem">
-      <div class="section-title" id="faction-trend-title">
-        <span class="title-text">% голосів «за» по фракціях</span><span class="unfiltered-badge">всі ініціатори</span>
-        <div style="display:flex;align-items:center;gap:.5rem;margin-left:auto">
-          <div class="metric-toggle" id="ftMetricToggle">
-            <button class="metric-btn active" data-metric="for">За</button>
-            <button class="metric-btn" data-metric="against">Проти</button>
+      <div class="chart-card diagnostics-wide">
+        <div class="section-title"><span class="title-text">Коли «Слузі народу» бракує власних голосів, результат визначають партнери</span><span class="scope-badge">всі ініціатори</span>
+          <button class="info-btn" tabindex="0">i<div class="info-popup">Смуга ділить успішні голосування за закони на ті, де «Слуга народу» мала 226 власних голосів, і ті, де рішення залежало від інших фракцій. Праворуч підтримка партнерів нормована на кількість можливостей підтримати такі рішення.</div></button>
+        </div>
+        <div class="partner-layout">
+          <div>
+            <div id="dependencyStrip" class="dependency-strip" role="img" aria-label="Розподіл успішних голосувань за залежністю від партнерів"></div>
+            <div id="dependencySummary" class="dependency-summary"></div>
           </div>
-          <div class="metric-toggle" id="ftSmoothToggle">
-            <button class="metric-btn active" data-smooth="0">Точно</button>
-            <button class="metric-btn" data-smooth="3">Ковзне ×3</button>
-          </div>
-          <button class="info-btn" tabindex="0">i<div class="info-popup">Частка голосів «за» (або «проти») від загальної кількості голосів фракції (за + проти + утримались + не голосували) за кожне засідання. Показано топ-5 фракцій за обсягом голосувань. Використовуйте мініграфік знизу для вибору діапазону.</div></button>
+          <div class="diagnostic-wrap compact"><canvas id="partnerSupportChart" role="img" tabindex="0" aria-label="Нормована підтримка партнерів у залежних голосуваннях"></canvas></div>
         </div>
-      </div>
-      <div style="position:relative;height:320px">
-        <canvas id="factionTrendChart"></canvas>
-      </div>
-      <div class="brush-outer" id="ftBrushWrap">
-        <div class="brush-canvas-wrap">
-          <canvas id="factionTrendOverview"></canvas>
-        </div>
-        <div class="brush-selected" id="ftBrushSel">
-          <div class="brush-handle brush-left"  id="ftBrushHL"></div>
-          <div class="brush-handle brush-right" id="ftBrushHR"></div>
-        </div>
+        <div class="chart-caption diagnostics-caption"><div>Підтримка = «за» / можливості; кілька партнерів можуть бути необхідними одночасно, тому їхні випадки не сумуються. <a href="https://texty.org.ua/projects/117724/tykhyi-kolaps-verkhovnoi-rady-chomu-parlament-dedali-hirshe-ukhvaliuye-zakony/" target="_blank" rel="noopener">Контекст: Texty</a>.</div><div><span class="credit">Графік: Valentyn Hatsko, TG: @gorbach_squad.</span> Джерело: data.rada.gov.ua, <span class="diag-source-date">дата уточнюється</span></div><div>Дані, код і метод: <a href="https://github.com/velgaks/rada-dashboard" target="_blank" rel="noopener">github.com/velgaks/rada-dashboard</a></div></div>
       </div>
     </div>
 
-    <!-- C2: Pass rate -->
-    <div class="chart-card" style="margin-bottom:2rem">
-      <div class="section-title" id="quorum-margin-title"><span class="title-text">% прийнятих рішень по датах</span>
-        <button class="info-btn" tabindex="0">i<div class="info-popup">Відсоток голосувань, що набрали ≥226 голосів «за» (прийняті), від загальної кількості голосувань за кожне засідання. Зелений ≥70%, жовтий 40–70%, червоний &lt;40%.</div></button>
+    <details class="secondary-analysis" id="secondaryAnalysis">
+      <summary>Додаткові графіки про результати голосувань</summary>
+      <div class="secondary-metrics" aria-label="Додаткові підсумкові показники">
+        <div class="secondary-metric">Прийнято<strong id="s-passed">—</strong></div>
+        <div class="secondary-metric">Провалено<strong id="s-failed">—</strong></div>
+        <div class="secondary-metric">Середній % «за» від присутніх<strong id="s-avg-for">—</strong></div>
       </div>
-      <div style="position:relative;height:240px">
-        <canvas id="quorumMarginChart"></canvas>
-      </div>
-    </div>
-
-    <!-- Initiator pass rate chart -->
-    <div class="chart-card" style="margin-bottom:2rem">
-      <div class="section-title" id="initiator-title"><span class="title-text">% прийнято за ініціатором</span>
-        <div style="display:flex;align-items:center;gap:.5rem;margin-left:auto">
-          <div class="metric-toggle" id="initSmoothToggle">
-            <button class="metric-btn active" data-smooth="0">Точно</button>
-            <button class="metric-btn" data-smooth="3">Ковзне ×3</button>
-          </div>
-          <button class="info-btn" tabindex="0">i<div class="info-popup">Відсоток прийнятих рішень за кожне засідання залежно від ініціатора: народні депутати, Президент або Кабінет Міністрів. Процедурні питання не враховуються. В дужках — загальна кількість законопроектів за період.</div></button>
+      <div class="secondary-grid">
+        <div class="chart-card">
+          <div class="section-title" id="for-title"><span class="title-text">Середні голоси «за» по датах</span><button class="info-btn" tabindex="0">i<div class="info-popup">Середня кількість голосів «за» на одне голосування за кожне засідання. Пунктирна лінія — 226.</div></button></div>
+          <div class="chart-wrap"><canvas id="forChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="section-title" id="quorum-margin-title"><span class="title-text">% прийнятих рішень по датах</span><button class="info-btn" tabindex="0">i<div class="info-popup">Відсоток голосувань, що набрали щонайменше 226 голосів «за».</div></button></div>
+          <div class="chart-wrap"><canvas id="quorumMarginChart"></canvas></div>
+        </div>
+        <div class="chart-card diagnostics-wide">
+          <div class="section-title" id="faction-trend-title"><span class="title-text">% голосів «за» по фракціях</span><span class="unfiltered-badge">всі ініціатори</span><div style="display:flex;align-items:center;gap:.5rem;margin-left:auto"><div class="metric-toggle" id="ftMetricToggle"><button class="metric-btn active" data-metric="for">За</button><button class="metric-btn" data-metric="against">Проти</button></div><div class="metric-toggle" id="ftSmoothToggle"><button class="metric-btn active" data-smooth="0">Точно</button><button class="metric-btn" data-smooth="3">Ковзне ×3</button></div></div></div>
+          <div style="position:relative;height:320px"><canvas id="factionTrendChart"></canvas></div>
+          <div class="brush-outer" id="ftBrushWrap"><div class="brush-canvas-wrap"><canvas id="factionTrendOverview"></canvas></div><div class="brush-selected" id="ftBrushSel"><div class="brush-handle brush-left" id="ftBrushHL"></div><div class="brush-handle brush-right" id="ftBrushHR"></div></div></div>
+        </div>
+        <div class="chart-card diagnostics-wide">
+          <div class="section-title" id="initiator-title"><span class="title-text">% прийнято за ініціатором</span><div style="display:flex;align-items:center;gap:.5rem;margin-left:auto"><div class="metric-toggle" id="initSmoothToggle"><button class="metric-btn active" data-smooth="0">Точно</button><button class="metric-btn" data-smooth="3">Ковзне ×3</button></div></div></div>
+          <div class="chart-wrap"><canvas id="initiatorChart"></canvas></div>
         </div>
       </div>
-      <div style="position:relative;height:240px">
-        <canvas id="initiatorChart"></canvas>
-      </div>
-    </div>
-
-    <!-- C3: Coalition dependency stacked area -->
-    <div class="chart-card" style="margin-bottom:2rem">
-      <div class="section-title" id="coalition-title"><span class="title-text">Внесок фракцій у голоси «за»</span><span class="unfiltered-badge">всі ініціатори</span>
-        <button class="info-btn" tabindex="0">i<div class="info-popup">Середня кількість голосів «за» від кожної фракції на одне голосування, з помісячною агрегацією. Площі складаються — верхня межа показує загальну кількість «за». Пунктирна лінія 226 — кворум. Використовуйте мініграфік знизу для вибору діапазону.</div></button>
-      </div>
-      <div style="position:relative;height:340px">
-        <canvas id="coalitionChart"></canvas>
-      </div>
-      <div class="brush-outer" id="coalBrushWrap">
-        <div class="brush-canvas-wrap">
-          <canvas id="coalitionOverview"></canvas>
-        </div>
-        <div class="brush-selected" id="coalBrushSel">
-          <div class="brush-handle brush-left"  id="coalBrushHL"></div>
-          <div class="brush-handle brush-right" id="coalBrushHR"></div>
-        </div>
-      </div>
-    </div>
+    </details>
 
   </div><!-- /tab-charts -->
 
@@ -902,6 +985,7 @@
 
   const QUORUM          = 226;
   const FACTION_URL     = 'faction_summary.json';
+  const FACTION_DIAGNOSTICS_URL = 'faction_diagnostics.json';
   const VOTE_FLAGS_URL  = 'vote_event_flags.json';
   const FACTIONS_DICT_URL = `${BASE}/dict/factions.json`;
 
@@ -957,10 +1041,10 @@
   }
 
   // ── Cache (localStorage, stale-while-revalidate) ─────────
-  const CACHE_VER = 2;
+  const CACHE_VER = 5;
   const CK = {
     csv: 'vrd_csv', agenda: 'vrd_agenda', facSum: 'vrd_facSum', facDict: 'vrd_facDict',
-    voteFlags: 'vrd_voteFlags', meta: 'vrd_meta',
+    diagnostics: 'vrd_factionDiagnostics', voteFlags: 'vrd_voteFlags', meta: 'vrd_meta',
   };
   function cacheSet(k, v) {
     try { localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); }
@@ -989,6 +1073,16 @@
     return factionSummary;
   }
 
+  function loadFactionDiagnosticsFromCache() {
+    const payload = cacheGet(CK.diagnostics);
+    if (!payload) return null;
+    try { return hydrateFactionDiagnostics(payload); }
+    catch {
+      localStorage.removeItem(CK.diagnostics);
+      return null;
+    }
+  }
+
   let voteEventFlags = null;
   let namedVoteIds = new Set();
   let amendmentVoteIds = new Set();
@@ -997,7 +1091,7 @@
     const validIdArray = values => Array.isArray(values) &&
       values.every(id => Number.isInteger(id) && id >= 0) &&
       new Set(values).size === values.length;
-    if (!payload || payload.meta?.schema_version !== 1 ||
+    if (!payload || payload.meta?.schema_version !== 2 ||
         !validIdArray(payload.named_vote_ids) || !validIdArray(payload.amendment_ids)) {
       throw new Error('Некоректний формат vote_event_flags.json');
     }
@@ -1118,6 +1212,58 @@
     return factionSummary;
   }
 
+  let factionDiagnostics = null;
+
+  function hydrateFactionDiagnostics(payload) {
+    const nonNegative = value => Number.isInteger(value) && value >= 0;
+    const factionFields = ['active', 'present', 'total', 'votes', 'discipline_agree',
+      'discipline_total', 'discipline_ties', 'discipline_low_activity'];
+    const coalitionFields = ['passed', 'sn_alone', 'sn_dependent'];
+    const partnerFields = ['for_votes', 'opportunities', 'strictly_necessary_votes'];
+    if (!payload || payload.meta?.schema_version !== 2 || !payload.daily ||
+        typeof payload.daily !== 'object' || Array.isArray(payload.daily)) {
+      throw new Error('Некоректний формат faction_diagnostics.json');
+    }
+    for (const [date, day] of Object.entries(payload.daily)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !day || typeof day.factions !== 'object' ||
+          !day.coalition || typeof day.coalition !== 'object') {
+        throw new Error(`Некоректні діагностичні дані за ${date}`);
+      }
+      for (const metrics of Object.values(day.factions)) {
+        if (!metrics || factionFields.some(field => !nonNegative(metrics[field])) ||
+            metrics.active > metrics.present || metrics.present > metrics.total ||
+            metrics.discipline_agree > metrics.discipline_total) {
+          throw new Error(`Некоректні фракційні метрики за ${date}`);
+        }
+      }
+      if (coalitionFields.some(field => !nonNegative(day.coalition[field])) ||
+          day.coalition.sn_alone + day.coalition.sn_dependent !== day.coalition.passed ||
+          !day.coalition.partners || typeof day.coalition.partners !== 'object') {
+        throw new Error(`Некоректні коаліційні метрики за ${date}`);
+      }
+      for (const metrics of Object.values(day.coalition.partners)) {
+        if (!metrics || partnerFields.some(field => !nonNegative(metrics[field])) ||
+            metrics.for_votes > metrics.opportunities) {
+          throw new Error(`Некоректні партнерські метрики за ${date}`);
+        }
+      }
+    }
+    factionDiagnostics = payload;
+    return factionDiagnostics;
+  }
+
+  function diagnosticsRevision(payload) {
+    if (!payload) return '';
+    return JSON.stringify(payload.meta || {});
+  }
+
+  async function loadFactionDiagnostics() {
+    const payload = await fetchJson(FACTION_DIAGNOSTICS_URL);
+    hydrateFactionDiagnostics(payload);
+    cacheSet(CK.diagnostics, payload);
+    return factionDiagnostics;
+  }
+
   async function loadVoteEventFlags() {
     let payload;
     try {
@@ -1168,7 +1314,8 @@
     let columns = null, sourceRows = 0, registrations = 0;
     let minDate = '', maxDate = '';
     const named = new Set(), amendments = new Set();
-    const amendmentPattern = /(^|[^А-Яа-яІіЇїЄєҐґ])поправ[А-Яа-яІіЇїЄєҐґ'’\-]*\s*№\s*\d+/i;
+    const numberedAmendmentPattern = /(^|[^А-Яа-яІіЇїЄєҐґ])поправ[А-Яа-яІіЇїЄєҐґ'’\-]*\s*№\s*\d+/i;
+    const unnumberedAmendmentActionPattern = /^поіменне голосування про поправку до про[єе]кту закону(?=$|[^А-Яа-яІіЇїЄєҐґ])/i;
 
     forEachCsvRecord(text, record => {
       if (!columns) {
@@ -1194,14 +1341,15 @@
         if (!minDate || date < minDate) minDate = date;
         if (!maxDate || date > maxDate) maxDate = date;
       }
-      if (amendmentPattern.test(record[columns.name_event] || '')) amendments.add(id);
+      const eventName = record[columns.name_event] || '';
+      if (numberedAmendmentPattern.test(eventName) || unnumberedAmendmentActionPattern.test(eventName)) amendments.add(id);
     });
 
     const namedVoteIds = [...named].sort((a, b) => a - b);
     const amendmentIds = [...amendments].sort((a, b) => a - b);
     return {
       meta: {
-        schema_version: 1,
+        schema_version: 2,
         retrieved_at: new Date().toISOString(),
         source_last_modified: sourceLastModified,
         min_date: minDate || null,
@@ -1242,28 +1390,80 @@
     return { total: eligible.length, sufficient, share: sufficient / eligible.length * 100 };
   }
 
-  function renderCards(metrics, capacity) {
-    document.getElementById('m-passed').textContent  = metrics ? metrics.passed : '—';
-    document.getElementById('m-failed').textContent  = metrics ? metrics.failed : '—';
-    document.getElementById('m-avg-for').textContent = metrics ? metrics.avgFor.toFixed(1) + '%' : '—';
+  function aggregateFactionDiagnostics(dateFrom, dateTo) {
+    if (!factionDiagnostics) return null;
+    const dates = Object.keys(factionDiagnostics.daily).filter(date => date >= dateFrom && date <= dateTo).sort();
+    if (!dates.length) return null;
+    const aggregate = {
+      dates,
+      factions: {},
+      coalition: { passed: 0, sn_alone: 0, sn_dependent: 0, partners: {} },
+    };
+    dates.forEach(date => {
+      const day = factionDiagnostics.daily[date];
+      Object.entries(day.factions).forEach(([fid, metrics]) => {
+        const target = aggregate.factions[fid] || {
+          active: 0, present: 0, total: 0, votes: 0, discipline_agree: 0,
+          discipline_total: 0, discipline_ties: 0, discipline_low_activity: 0,
+        };
+        Object.keys(target).forEach(field => { target[field] += metrics[field] || 0; });
+        aggregate.factions[fid] = target;
+      });
+      ['passed', 'sn_alone', 'sn_dependent'].forEach(field => {
+        aggregate.coalition[field] += day.coalition[field] || 0;
+      });
+      Object.entries(day.coalition.partners).forEach(([fid, metrics]) => {
+        const target = aggregate.coalition.partners[fid] || {
+          for_votes: 0, opportunities: 0, strictly_necessary_votes: 0,
+        };
+        Object.keys(target).forEach(field => { target[field] += metrics[field] || 0; });
+        aggregate.coalition.partners[fid] = target;
+      });
+    });
+    return aggregate;
+  }
 
+  function renderCards(capacity, diagnostics) {
     const value = document.getElementById('m-capacity');
     const sub = document.getElementById('m-capacity-sub');
     if (!capacity || capacity.unavailable) {
       value.textContent = '—';
       sub.textContent = capacity?.reason || 'класифікація голосувань недоступна';
       sub.classList.add('warning');
+    } else {
+      value.textContent = capacity.share.toFixed(1) + '%';
+      sub.textContent = `${capacity.sufficient} із ${capacity.total} голосувань`;
+      sub.classList.remove('warning');
+    }
+
+    const activeEl = document.getElementById('m-active');
+    const silentEl = document.getElementById('m-silent');
+    const dependentEl = document.getElementById('m-dependent');
+    if (!diagnostics) {
+      [activeEl, silentEl, dependentEl].forEach(el => { el.textContent = '—'; });
       return;
     }
-    value.textContent = capacity.share.toFixed(1) + '%';
-    sub.textContent = `${capacity.sufficient} із ${capacity.total} голосувань`;
-    sub.classList.remove('warning');
+    const factions = Object.values(diagnostics.factions);
+    const total = factions.reduce((sum, metrics) => sum + metrics.total, 0);
+    const active = factions.reduce((sum, metrics) => sum + metrics.active, 0);
+    const present = factions.reduce((sum, metrics) => sum + metrics.present, 0);
+    activeEl.textContent = total ? (active / total * 100).toFixed(1) + '%' : '—';
+    silentEl.textContent = present ? ((present - active) / present * 100).toFixed(1) + '%' : '—';
+    const passed = diagnostics.coalition.passed;
+    dependentEl.textContent = passed
+      ? (diagnostics.coalition.sn_dependent / passed * 100).toFixed(1) + '%'
+      : '—';
+  }
+
+  function renderSecondaryMetrics(metrics) {
+    document.getElementById('s-passed').textContent = metrics ? metrics.passed : '—';
+    document.getElementById('s-failed').textContent = metrics ? metrics.failed : '—';
+    document.getElementById('s-avg-for').textContent = metrics ? metrics.avgFor.toFixed(1) + '%' : '—';
   }
 
   let capacityTrendInstance = null;
   let forChartInstance = null;
   let forChartData     = null;
-  let donutInstance    = null; // kept for tab-resize array compat, no longer used
 
   const quorumPlugin = {
     id: 'quorum',
@@ -1328,8 +1528,6 @@
   }
 
   // ── Faction participation heatmap ──────────────────────────────────────────
-  let _heatmapMetric = 'active'; // 'active' | 'present'
-
   function mixHexColor(from, to, t) {
     const clamp = Math.max(0, Math.min(1, t));
     const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
@@ -1339,26 +1537,21 @@
 
   function renderFactionHeatmap(dateFrom, dateTo) {
     const container = document.getElementById('factionHeatmap');
-    const activeMode = _heatmapMetric === 'active';
-    document.querySelector('#faction-heatmap-title .title-text').textContent =
-      activeMode ? 'Активна участь по фракціях' : 'Присутність по фракціях';
-    const allSorted = factionDatesAvailable();
+    const allSorted = factionDiagnostics ? Object.keys(factionDiagnostics.daily).sort() : [];
     if (!allSorted.length) {
-      container.innerHTML = `<span style="color:var(--muted);font-size:.8rem">${escapeHtml(factionDataNote())}</span>`;
+      container.innerHTML = '<span style="color:var(--muted);font-size:.8rem">Фракційна діагностика недоступна</span>';
       return;
     }
-    const dates = dateFrom === dateTo
-      ? allSorted.filter(d => d <= dateTo).slice(-15)
-      : allSorted.filter(d => d >= dateFrom && d <= dateTo).slice(-15);
+    const dates = allSorted.filter(d => d >= dateFrom && d <= dateTo).slice(-15);
     if (!dates.length) {
-      container.innerHTML = `<span style="color:var(--muted);font-size:.8rem">${escapeHtml(factionDataNote())}</span>`;
+      container.innerHTML = '<span style="color:var(--muted);font-size:.8rem">Немає діагностичних даних у вибраному періоді</span>';
       return;
     }
-    const fids = [...new Set(dates.flatMap(d => Object.keys(factionSummary[d] || {})))]
+    const fids = [...new Set(dates.flatMap(d => Object.keys(factionDiagnostics.daily[d]?.factions || {})))]
       .sort((a, b) => {
         const vol = fid => dates.reduce((s, d) => {
-          const v = factionSummary[d]?.[fid]; if (!v) return s;
-          return s + v.for + v.against + v.abstain + v.not_voting + v.absent;
+          const metrics = factionDiagnostics.daily[d]?.factions?.[fid];
+          return s + (metrics?.total || 0);
         }, 0);
         return vol(b) - vol(a);
       });
@@ -1370,38 +1563,334 @@
       dates.map(d => { const [,m,day]=d.split('-'); return `<div class="heatmap-col-label" title="${d}">${day}.${m}</div>`; }).join('') +
       '</div>';
     const rows = fids.map(fid => {
-      const label = (FACTION_NAMES[fid] || `Фр.${fid}`)
-        .replace(/^(Всеукраїнське|Партія|Депутатська)\s+/i, '').slice(0, 11);
+      const label = shortFactionName(fid);
       const cells = dates.map(d => {
-        const v = factionSummary[d]?.[fid];
-        if (!v) return '<div class="heatmap-cell" style="background:rgba(37,45,61,0.3)" aria-label="Немає даних"></div>';
-        const active = v.for + v.against + v.abstain;
-        const present = active + v.not_voting;
-        const total = present + v.absent;
-        const numerator = activeMode ? active : present;
-        const rate = total > 0 ? numerator / total : null;
-        const pct = rate !== null ? Math.round(rate * 100) : '—';
+        const metrics = factionDiagnostics.daily[d]?.factions?.[fid];
+        if (!metrics) return '<div class="heatmap-cell" style="background:rgba(37,45,61,0.3)" aria-label="Немає даних"></div>';
+        const rate = metrics.total > 0 ? metrics.active / metrics.total : null;
+        const pct = rate !== null ? (rate * 100).toFixed(1) : '—';
         const [,m,day] = d.split('-');
-        const fname = FACTION_NAMES[fid] || `Фракція ${fid}`;
-        const n = _billCountByDate[d] || 1;
-        const avgNumerator = Math.round(numerator / n);
-        const avgTotal = Math.round(total / n);
-        const metricLabel = activeMode ? 'активно голосували' : 'були присутні';
-        const description = `${fname} · ${day}.${m}: ${pct}% ${metricLabel}; у середньому ${avgNumerator} із ${avgTotal} на голосування`;
+        const fname = shortFactionName(fid);
+        const description = `${fname} · ${day}.${m}: ${pct}% активно; ${metrics.active} із ${metrics.total} депутат-голосувань, ${metrics.votes} голосувань`;
         const safeDescription = escapeHtml(description);
         return `<div class="heatmap-cell" role="img" tabindex="0" style="background:${cellColor(rate)}" title="${safeDescription}" aria-label="${safeDescription}" data-focus-label="${safeDescription}"></div>`;
       }).join('');
-      return `<div class="heatmap-row"><div class="heatmap-label" title="${FACTION_NAMES[fid]||''}">${label}</div>${cells}</div>`;
+      return `<div class="heatmap-row"><div class="heatmap-label" title="${escapeHtml(shortFactionName(fid))}">${escapeHtml(label)}</div>${cells}</div>`;
     }).join('');
-    // The single-date view falls back to "last 15 available sessions", so it can render
-    // months-old data under a current-looking date range. Say so rather than imply the
-    // grid covers the selected period.
     const lastAvailable = allSorted[allSorted.length - 1];
     const lag = lastAvailable < dateTo
-      ? `<div class="faction-lag">${escapeHtml(factionDataNote())}</div>` : '';
-    const legendLabel = activeMode ? 'частка активних' : 'частка присутніх';
-    const legend = `<div class="heatmap-scale-wrap" aria-label="Безперервна шкала від 0 до 100 відсотків"><span>0%</span><span class="heatmap-scale"></span><span>100%</span><span>${legendLabel}</span></div>`;
+      ? `<div class="faction-lag">Діагностика доступна по ${escapeHtml(lastAvailable)}</div>` : '';
+    const legend = '<div class="heatmap-scale-wrap" aria-label="Безперервна шкала активної участі від 0 до 100 відсотків"><span>0%</span><span class="heatmap-scale"></span><span>100%</span><span>частка активних</span></div>';
     container.innerHTML = lag + header + rows + legend;
+  }
+
+  let factionHealthInstance = null;
+  let presenceGapInstance = null;
+  let partnerSupportInstance = null;
+
+  const FACTION_ALIASES = {
+    '0': 'Позафракційні',
+    '1': 'Слуга народу',
+    '2': 'ОПЗЖ',
+    '3': 'Батьківщина',
+    '4': 'ЄС',
+    '5': 'Голос',
+    '6': 'За майбутнє',
+    '7': 'Довіра',
+    '8': 'Партія «За майбутнє»',
+    '9': 'ПЗЖМ',
+    '10': 'Відновлення України',
+  };
+
+  function shortFactionName(fid) {
+    if (FACTION_ALIASES[fid]) return FACTION_ALIASES[fid];
+    return (FACTION_NAMES[fid] || `Фракція ${fid}`)
+      .replace(/[’`]/g, "'")
+      .replace(/^(Фракція політичної партії|Депутатська група|Всеукраїнське об'єднання|Партія)\s*/i, '')
+      .replace(/\s+у Верховній Раді України\s*$/i, '')
+      .slice(0, 24);
+  }
+
+  const scatterLabelsPlugin = {
+    id: 'scatterLabels',
+    afterDatasetsDraw(chart) {
+      const dataset = chart.data.datasets[0];
+      if (!dataset) return;
+      const meta = chart.getDatasetMeta(0);
+      const { ctx, chartArea } = chart;
+      const compact = chart.width < 400;
+      const entries = dataset.data.map((raw, index) => ({ raw, point: meta.data[index] }))
+        .filter(entry => entry.point && !entry.point.skip)
+        .sort((a, b) => a.point.y - b.point.y);
+      const minY = chartArea.top + 8;
+      const maxY = chartArea.bottom - 4;
+      const spacing = compact ? 11 : 13;
+      entries.forEach((entry, index) => {
+        entry.labelY = Math.max(minY, entry.point.y);
+        if (index) entry.labelY = Math.max(entry.labelY, entries[index - 1].labelY + spacing);
+      });
+      const overflow = entries.length ? entries[entries.length - 1].labelY - maxY : 0;
+      if (overflow > 0) entries.forEach(entry => { entry.labelY -= overflow; });
+      for (let index = entries.length - 2; index >= 0; index--) {
+        entries[index].labelY = Math.min(entries[index].labelY, entries[index + 1].labelY - spacing);
+      }
+      const labelX = chartArea.right + (compact ? 7 : 10);
+      ctx.save();
+      ctx.font = `${compact ? 8 : 10}px "IBM Plex Sans", sans-serif`;
+      ctx.fillStyle = '#cbd5e1';
+      ctx.strokeStyle = 'rgba(168,177,193,.48)';
+      ctx.lineWidth = 1;
+      entries.forEach(({ raw, point, labelY }) => {
+        ctx.beginPath();
+        ctx.moveTo(point.x + 4, point.y);
+        ctx.lineTo(labelX - 3, labelY - 3);
+        ctx.stroke();
+        ctx.fillText(shortFactionName(raw.fid), labelX, labelY);
+      });
+      ctx.restore();
+    },
+  };
+
+  const medianLinesPlugin = {
+    id: 'diagnosticMedians',
+    beforeDatasetsDraw(chart, _args, options) {
+      if (!Number.isFinite(options?.x) || !Number.isFinite(options?.y)) return;
+      const { ctx, chartArea, scales } = chart;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(168,177,193,.35)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 4]);
+      const x = scales.x.getPixelForValue(options.x);
+      const y = scales.y.getPixelForValue(options.y);
+      ctx.beginPath(); ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(chartArea.left, y); ctx.lineTo(chartArea.right, y); ctx.stroke();
+      ctx.restore();
+    },
+  };
+
+  const dumbbellConnectorPlugin = {
+    id: 'dumbbellConnectors',
+    beforeDatasetsDraw(chart) {
+      const present = chart.data.datasets[0]?.data || [];
+      const active = chart.data.datasets[1]?.data || [];
+      const { ctx, scales } = chart;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(168,177,193,.55)';
+      ctx.lineWidth = 1.5;
+      present.forEach((point, index) => {
+        if (!active[index]) return;
+        const y = scales.y.getPixelForValue(point.y);
+        ctx.beginPath();
+        ctx.moveTo(scales.x.getPixelForValue(active[index].x), y);
+        ctx.lineTo(scales.x.getPixelForValue(point.x), y);
+        ctx.stroke();
+      });
+      ctx.restore();
+    },
+  };
+
+  function diagnosticPercent(value) {
+    return Number.isFinite(value) ? value.toFixed(1) + '%' : '—';
+  }
+
+  function median(values) {
+    const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+    if (!sorted.length) return null;
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+
+  function renderFactionHealthChart(diagnostics) {
+    const canvasId = 'factionHealthChart';
+    const points = Object.entries(diagnostics?.factions || {}).flatMap(([fid, metrics]) => {
+      if (!metrics.total || !metrics.discipline_total) return [];
+      return [{
+        x: metrics.active / metrics.total * 100,
+        y: metrics.discipline_agree / metrics.discipline_total * 100,
+        fid, metrics,
+      }];
+    });
+    if (!points.length) {
+      if (factionHealthInstance) factionHealthInstance.destroy();
+      factionHealthInstance = null;
+      setChartNote(canvasId, 'Немає даних про мобілізацію та дисципліну в цьому періоді');
+      return;
+    }
+    setChartNote(canvasId, null);
+    const canvas = document.getElementById(canvasId);
+    canvas.setAttribute('aria-label', 'Мобілізація та дисципліна фракцій. ' + points
+      .map(point => `${shortFactionName(point.fid)}: активність ${point.x.toFixed(1)}%, дисципліна ${point.y.toFixed(1)}%`)
+      .join('; ') + '.');
+    if (factionHealthInstance) factionHealthInstance.destroy();
+    factionHealthInstance = new Chart(canvas.getContext('2d'), {
+      type: 'scatter',
+      plugins: [medianLinesPlugin, scatterLabelsPlugin],
+      data: { datasets: [{ data: points, pointRadius: 6, pointHoverRadius: 8,
+        pointBackgroundColor: context => context.raw?.fid === '1' ? '#2a78d6' : '#7a8599',
+        pointBorderColor: '#f8fafc', pointBorderWidth: 1 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { right: window.innerWidth < 600 ? 92 : 132, top: 8 } },
+        plugins: {
+          legend: { display: false },
+          diagnosticMedians: { x: median(points.map(point => point.x)), y: median(points.map(point => point.y)) },
+          tooltip: { displayColors: false, callbacks: {
+            title: items => shortFactionName(items[0].raw.fid),
+            label: context => [`Активна участь: ${diagnosticPercent(context.raw.x)}`,
+              `Дисципліна: ${diagnosticPercent(context.raw.y)}`,
+              `Голосувань: ${context.raw.metrics.votes}`,
+              `Без напряму: ${context.raw.metrics.discipline_ties + context.raw.metrics.discipline_low_activity}`],
+          } },
+        },
+        scales: {
+          x: { min: 0, max: 100, grid: { display: false }, border: { display: false },
+            title: { display: true, text: 'активна участь', color: '#898781' },
+            ticks: { color: '#898781', callback: value => value + '%', maxTicksLimit: 5 } },
+          y: { min: 0, max: 100, grid: { display: false }, border: { display: false },
+            title: { display: true, text: 'дисципліна', color: '#898781' },
+            ticks: { color: '#898781', callback: value => value + '%', maxTicksLimit: 5 } },
+        },
+      },
+    });
+  }
+
+  function renderPresenceGapChart(diagnostics) {
+    const canvasId = 'presenceGapChart';
+    const rows = Object.entries(diagnostics?.factions || {}).flatMap(([fid, metrics]) => {
+      if (!metrics.total) return [];
+      const active = metrics.active / metrics.total * 100;
+      const present = metrics.present / metrics.total * 100;
+      return [{ fid, label: shortFactionName(fid), active, present, gap: present - active }];
+    }).sort((a, b) => b.gap - a.gap);
+    if (!rows.length) {
+      if (presenceGapInstance) presenceGapInstance.destroy();
+      presenceGapInstance = null;
+      setChartNote(canvasId, 'Немає даних про присутність у цьому періоді');
+      return;
+    }
+    setChartNote(canvasId, null);
+    const canvas = document.getElementById(canvasId);
+    canvas.setAttribute('aria-label', 'Присутність, активність і розрив за фракціями. ' + rows
+      .map(row => `${row.label}: присутні ${row.present.toFixed(1)}%, активні ${row.active.toFixed(1)}%, розрив ${row.gap.toFixed(1)} в.п.`)
+      .join('; ') + '.');
+    if (presenceGapInstance) presenceGapInstance.destroy();
+    presenceGapInstance = new Chart(canvas.getContext('2d'), {
+      type: 'scatter',
+      plugins: [dumbbellConnectorPlugin],
+      data: { datasets: [
+        { label: 'Присутні', data: rows.map(row => ({ x: row.present, y: row.fid, row })), pointRadius: 5, pointBackgroundColor: '#86b6ef' },
+        { label: 'Активно голосували', data: rows.map(row => ({ x: row.active, y: row.fid, row })), pointRadius: 5, pointBackgroundColor: '#eb6834' },
+      ] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: {
+          title: items => items[0].raw.row.label,
+          label: context => `${context.dataset.label}: ${diagnosticPercent(context.raw.x)}`,
+          footer: items => `Розрив: ${items[0].raw.row.gap.toFixed(1)} в.п.`,
+        } } },
+        scales: {
+          x: { min: 0, max: 100, grid: { color: 'rgba(225,224,217,.10)', drawTicks: false }, border: { display: false }, ticks: { color: '#898781', callback: value => value + '%' } },
+          y: { type: 'category', labels: rows.map(row => row.fid), offset: true, grid: { display: false }, border: { display: false }, ticks: { color: '#cbd5e1', font: { size: 10 }, callback(value) { return shortFactionName(this.getLabelForValue(value)); } } },
+        },
+      },
+    });
+  }
+
+  function renderPartnerDiagnostics(diagnostics) {
+    const coalition = diagnostics?.coalition;
+    const strip = document.getElementById('dependencyStrip');
+    const summary = document.getElementById('dependencySummary');
+    const canvasId = 'partnerSupportChart';
+    if (!coalition || !coalition.passed) {
+      strip.replaceChildren();
+      strip.setAttribute('aria-label', 'Немає успішних голосувань у вибраному періоді');
+      summary.textContent = 'Немає успішних голосувань у вибраному періоді.';
+      if (partnerSupportInstance) partnerSupportInstance.destroy();
+      partnerSupportInstance = null;
+      setChartNote(canvasId, 'Немає залежних голосувань у цьому періоді');
+      return;
+    }
+    const segments = [
+      { key: 'alone', count: coalition.sn_alone, label: 'СН самостійно' },
+      { key: 'dependent', count: coalition.sn_dependent, label: 'потрібні партнери' },
+    ];
+    strip.replaceChildren(...segments.filter(segment => segment.count > 0).map(segment => {
+      const el = document.createElement('div');
+      el.className = `dependency-segment ${segment.key}`;
+      el.style.width = `${segment.count / coalition.passed * 100}%`;
+      el.textContent = `${segment.label}: ${segment.count}`;
+      return el;
+    }));
+    strip.setAttribute('aria-label', `${coalition.sn_alone} успішних голосувань за закони Слуга народу забезпечила самостійно; у ${coalition.sn_dependent} були потрібні партнери.`);
+    summary.textContent = `${coalition.sn_dependent} із ${coalition.passed} успішних голосувань за закони залежали від партнерів (${(coalition.sn_dependent / coalition.passed * 100).toFixed(1)}%).`;
+
+    const partners = Object.entries(coalition.partners).flatMap(([fid, metrics]) => {
+      if (!metrics.opportunities || fid === '1') return [];
+      return [{ fid, label: shortFactionName(fid), rate: metrics.for_votes / metrics.opportunities * 100, ...metrics }];
+    }).sort((a, b) => b.rate - a.rate);
+    if (!partners.length) {
+      if (partnerSupportInstance) partnerSupportInstance.destroy();
+      partnerSupportInstance = null;
+      setChartNote(canvasId, 'Немає партнерських можливостей у цьому періоді');
+      return;
+    }
+    setChartNote(canvasId, null);
+    const canvas = document.getElementById(canvasId);
+    canvas.setAttribute('aria-label', 'Нормована підтримка партнерів. ' + partners
+      .map(row => `${row.label}: ${row.rate.toFixed(1)}%, ${row.for_votes} із ${row.opportunities} можливостей, голосувань де без фракції не було б 226 — ${row.strictly_necessary_votes}`)
+      .join('; ') + `. Загалом залежних голосувань у періоді: ${coalition.sn_dependent}. Кілька партнерів можуть бути необхідними в одному голосуванні.`);
+    if (partnerSupportInstance) partnerSupportInstance.destroy();
+    partnerSupportInstance = new Chart(canvas.getContext('2d'), {
+      type: 'scatter',
+      data: { datasets: [{ data: partners.map(row => ({ x: row.rate, y: row.fid, row })), pointRadius: 6,
+        pointHoverRadius: 8, pointBackgroundColor: context => context.dataIndex === 0 ? '#2a78d6' : '#7a8599',
+        pointBorderColor: '#f8fafc', pointBorderWidth: 1 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: {
+          title: items => items[0].raw.row.label,
+          label: context => [`Підтримка: ${diagnosticPercent(context.raw.x)}`,
+            `${context.raw.row.for_votes} із ${context.raw.row.opportunities} можливостей`,
+            `Голосувань, де без фракції не було б 226: ${context.raw.row.strictly_necessary_votes}`,
+            `Залежних голосувань у періоді: ${coalition.sn_dependent}`],
+        } } },
+        scales: {
+          x: { min: 0, max: 100, grid: { color: 'rgba(225,224,217,.10)', drawTicks: false }, border: { display: false },
+            title: { display: true, text: 'частка підтримки', color: '#898781' }, ticks: { color: '#898781', callback: value => value + '%' } },
+          y: { type: 'category', labels: partners.map(row => row.fid), offset: true, grid: { display: false }, border: { display: false }, ticks: { color: '#cbd5e1', font: { size: 10 }, callback(value) { return shortFactionName(this.getLabelForValue(value)); } } },
+        },
+      },
+    });
+  }
+
+  function updateDiagnosticsSourceDate() {
+    const value = factionDiagnostics?.meta?.retrieved_at || factionDiagnostics?.meta?.generated_at || '';
+    const text = value ? formatRetrievedDate(value) : 'дату отримання не вказано';
+    document.querySelectorAll('.diag-source-date').forEach(element => { element.textContent = text; });
+  }
+
+  function renderDiagnostics(diagnostics, dateFrom, dateTo) {
+    updateDiagnosticsSourceDate();
+    const attempts = [
+      ['мобілізація × дисципліна', ['factionHealthChart'], () => renderFactionHealthChart(diagnostics)],
+      ['розрив присутності', ['presenceGapChart'], () => renderPresenceGapChart(diagnostics)],
+      ['теплова карта', [], () => renderFactionHeatmap(dateFrom, dateTo)],
+      ['партнерська залежність', ['partnerSupportChart'], () => renderPartnerDiagnostics(diagnostics)],
+    ];
+    attempts.forEach(([label, canvases, render]) => {
+      try { render(); }
+      catch (error) {
+        console.error(`Не вдалося відобразити ${label}:`, error);
+        canvases.forEach(id => setChartNote(id, 'Цей діагностичний графік тимчасово недоступний'));
+        if (label === 'теплова карта') {
+          document.getElementById('factionHeatmap').innerHTML = '<span style="color:var(--muted);font-size:.8rem">Теплова карта тимчасово недоступна</span>';
+        }
+        if (label === 'партнерська залежність') {
+          document.getElementById('dependencyStrip').replaceChildren();
+          document.getElementById('dependencySummary').textContent = 'Партнерська діагностика тимчасово недоступна.';
+        }
+      }
+    });
   }
 
   function renderForChart(data, dateFrom, dateTo) {
@@ -1668,9 +2157,7 @@
   let factionTrendOverviewInstance = null;
   // All-time cached faction rankings (set once in initBrushCharts)
   let _allFtTopFactions = null;  // top-5 faction IDs by all-time vote volume
-  let _allCoalFactions  = null;  // all faction IDs by all-time "for" total
   let _allFactionDates  = null;  // sorted date strings from factionSummary
-  let _billCountByDate  = {};    // { 'YYYY-MM-DD': N } — number of bills per session
   let _ftMetric         = 'for'; // 'for' | 'against' — C1 toggle state
   let _ftSmooth         = 0;    // 0 = raw, 3 = rolling avg window
   let _ftCurrentFrom    = null;  // current brush range for C1
@@ -1771,65 +2258,15 @@
     });
   }
 
-  function renderCoalitionOverview(rows, allDates) {
-    const monthBuckets = {};
-    allDates.forEach(d => {
-      const m = d.slice(0, 7);
-      if (!monthBuckets[m]) monthBuckets[m] = [];
-      monthBuckets[m].push(d);
-    });
-    const months = Object.keys(monthBuckets).sort();
-
-    const votesPerDate = {};
-    rows.forEach(r => { votesPerDate[r.date_agenda] = (votesPerDate[r.date_agenda] || 0) + 1; });
-
-    const datasets = _allCoalFactions.map(fid => ({
-      data: months.map(m => {
-        const dates = monthBuckets[m];
-        let fFor = 0, totalVotes = 0;
-        dates.forEach(d => {
-          fFor       += (factionSummary[d]?.[fid]?.for || 0);
-          totalVotes += (votesPerDate[d] || 0);
-        });
-        return totalVotes > 0 ? Math.round(fFor / totalVotes) : 0;
-      }),
-      backgroundColor: factionColor(fid) + '88',
-      borderColor: factionColor(fid),
-      borderWidth: 1,
-      fill: true,
-      tension: 0.3,
-      pointRadius: 0,
-    }));
-
-    if (coalitionOverviewInstance) coalitionOverviewInstance.destroy();
-    const ctx = document.getElementById('coalitionOverview').getContext('2d');
-    coalitionOverviewInstance = new Chart(ctx, {
-      type: 'line',
-      data: { labels: months, datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: { legend: { display: false }, tooltip: { enabled: false } },
-        scales: {
-          x: { display: false },
-          y: { display: false, stacked: true, min: 0, max: 393 },
-        },
-      },
-    });
-  }
-
   // ── One-time brush chart initialiser (called after data load) ──
   function initBrushCharts(rows) {
     const allDates = factionDatesAvailable();
     _allFactionDates = allDates;
 
-    // No faction data at all — leave both brush charts as explained blanks
+    // No faction data at all — leave the legacy brush chart as an explained blank.
     if (!allDates.length) {
       setChartNote('factionTrendChart', factionDataNote());
-      setChartNote('coalitionChart', factionDataNote());
       document.getElementById('ftBrushWrap').style.display = 'none';
-      document.getElementById('coalBrushWrap').style.display = 'none';
       return;
     }
 
@@ -1847,16 +2284,8 @@
     volumes.sort((a, b) => b.vol - a.vol);
     _allFtTopFactions = volumes.slice(0, 5).map(x => x.fid);
 
-    const totals = factionIds.map(fid => ({
-      fid,
-      total: allDates.reduce((s, d) => s + (factionSummary[d]?.[fid]?.for || 0), 0),
-    }));
-    totals.sort((a, b) => b.total - a.total);
-    _allCoalFactions = totals.map(x => x.fid);
-
-    // Render overview (mini) charts first
+    // Render the overview (mini) chart first.
     renderFactionTrendOverview(allDates);
-    renderCoalitionOverview(rows, allDates);
 
     // Default brush: last 3 months
     const lastDate = allDates[allDates.length - 1];
@@ -1879,10 +2308,6 @@
         renderFactionTrendChart(s, e);
       });
     ftBrush.set(pStart, 1.0);
-
-    const coalBrush = initBrush('coalBrushWrap', 'coalBrushSel', 'coalBrushHL', 'coalBrushHR',
-      (ps, pe) => { const [s, e] = brushToDateRange(ps, pe); renderCoalitionChart(rows, s, e); });
-    coalBrush.set(pStart, 1.0);
 
     // Wire За/Проти toggle
     document.querySelectorAll('#ftMetricToggle .metric-btn').forEach(btn => {
@@ -2205,135 +2630,6 @@
     });
   }
 
-  // ── C3: Coalition dependency stacked area (monthly) ─────
-  let coalitionInstance = null;
-  let coalitionOverviewInstance = null;
-
-  const MONTH_NAMES_UK = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер',
-                           'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
-
-  function renderCoalitionChart(rows, dateFrom, dateTo) {
-    // Group dates into months
-    const datesInRange = factionDatesAvailable()
-      .filter(d => d >= dateFrom && d <= dateTo);
-
-    if (!datesInRange.length) {
-      if (coalitionInstance) coalitionInstance.destroy();
-      coalitionInstance = null;
-      setChartNote('coalitionChart', factionDataNote());
-      return;
-    }
-    setChartNote('coalitionChart', null);
-
-    // Build monthly buckets: { '2025-12': [dates...], ... }
-    const monthBuckets = {};
-    datesInRange.forEach(d => {
-      const month = d.slice(0, 7); // YYYY-MM
-      if (!monthBuckets[month]) monthBuckets[month] = [];
-      monthBuckets[month].push(d);
-    });
-    const months = Object.keys(monthBuckets).sort();
-
-    // If only 1 month, fall back to daily view within that month
-    const useDaily = months.length <= 1;
-    const buckets = useDaily
-      ? Object.fromEntries(datesInRange.map(d => [d, [d]]))
-      : monthBuckets;
-    const bucketKeys = useDaily ? datesInRange : months;
-
-    // Count votes per date from rows
-    const votesPerDate = {};
-    rows.forEach(r => {
-      if (r.date_agenda >= dateFrom && r.date_agenda <= dateTo)
-        votesPerDate[r.date_agenda] = (votesPerDate[r.date_agenda] || 0) + 1;
-    });
-
-    // Use all-time faction ordering so legend stays consistent across brush positions
-    const orderedFactions = _allCoalFactions ||
-      [...new Set(datesInRange.flatMap(d => Object.keys(factionSummary[d] || {})))];
-
-    const labels = bucketKeys.map(k => {
-      if (useDaily) {
-        const [, m, day] = k.split('-');
-        return `${day}.${m}`;
-      }
-      const [y, m] = k.split('-');
-      return `${MONTH_NAMES_UK[+m - 1]} '${y.slice(2)}`;
-    });
-
-    const datasets = orderedFactions.map(fid => ({
-      label: FACTION_NAMES[fid] || `Фракція ${fid}`,
-      data: bucketKeys.map(k => {
-        const dates = buckets[k];
-        let factionFor = 0, totalVotes = 0;
-        dates.forEach(d => {
-          factionFor += (factionSummary[d]?.[fid]?.for || 0);
-          totalVotes += (votesPerDate[d] || 0);
-        });
-        return totalVotes > 0 ? Math.round(factionFor / totalVotes) : 0;
-      }),
-      backgroundColor: factionColor(fid) + '88',
-      borderColor: factionColor(fid),
-      borderWidth: 1.5,
-      fill: true,
-      tension: 0.35,
-      pointRadius: bucketKeys.length > 20 ? 0 : 3,
-      pointHoverRadius: 5,
-    }));
-
-    const aggLabel = useDaily ? '' : ' · помісячно';
-    document.querySelector('#coalition-title .title-text').textContent =
-      `Внесок фракцій у голоси «за»${aggLabel} (${dateFrom} — ${dateTo})`;
-
-    if (coalitionInstance) coalitionInstance.destroy();
-    const ctx = document.getElementById('coalitionChart').getContext('2d');
-    coalitionInstance = new Chart(ctx, {
-      type: 'line',
-      plugins: [quorumPlugin],
-      data: { labels, datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              color: '#64748b',
-              font: { family: 'IBM Plex Sans', size: 11 },
-              boxWidth: 12,
-              usePointStyle: true,
-            },
-          },
-          tooltip: {
-            mode: 'index',
-            callbacks: {
-              label: (item) => ` ${item.dataset.label}: ${item.raw}`,
-              footer: (items) => {
-                const total = items.reduce((s, it) => s + it.raw, 0);
-                return `Всього «за»: ${total} (${total >= QUORUM ? 'кворум є' : 'кворуму немає'})`;
-              },
-            },
-          },
-        },
-        scales: {
-          x: {
-            grid: { color: 'rgba(37,45,61,0.3)' },
-            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 11 } },
-          },
-          y: {
-            stacked: true,
-            min: 0,
-            max: 393,
-            title: { display: true, text: 'депутатів', color: '#64748b', font: { family: 'IBM Plex Mono', size: 10 } },
-            grid: { color: 'rgba(37,45,61,0.3)' },
-            ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 11 }, stepSize: 50 },
-          },
-        },
-      },
-    });
-  }
-
   // ── Virtual scroll state ──────────────────────────────────
   const BATCH_SIZE = 50;
   let currentFilteredRows = [];   // date range + initiator filter
@@ -2506,7 +2802,7 @@
     if (isFile) {
       return `<strong>Сторінку відкрито через <code>file://</code> — браузер блокує мережеві запити.</strong><br>
 Відкрийте файл через локальний HTTP-сервер:<br>
-<code>python -m http.server 5173</code> → <a href="http://localhost:5173" style="color:#93c5fd">http://localhost:5173</a>`;
+<code>node serve.js 5174</code> → <a href="http://localhost:5174" style="color:#93c5fd">http://localhost:5174</a>`;
     }
     if (!navigator.onLine) {
       return '<strong>Немає з\'єднання з інтернетом.</strong> Перевірте мережу та спробуйте ще раз.';
@@ -2526,12 +2822,33 @@
     // Try cache first (SWR: show stale data immediately)
     if (!_bustCache && cacheValid()) {
       const cached = loadDataFromCache();
-      const cachedFaction = loadFactionFromCache();
-      if (cached && cachedFaction) {
+      if (cached) {
         rows = cached.rows;
         agendaMap = cached.agendaMap;
-        loadVoteEventFlagsFromCache();
         fromCache = true;
+
+        // Optional caches must never prevent valid core rows from rendering.
+        try { loadFactionFromCache(); }
+        catch (err) {
+          factionSummary = null;
+          localStorage.removeItem(CK.facSum);
+          localStorage.removeItem(CK.facDict);
+          console.warn('Cached faction data unavailable:', err);
+        }
+        try { loadFactionDiagnosticsFromCache(); }
+        catch (err) {
+          factionDiagnostics = null;
+          localStorage.removeItem(CK.diagnostics);
+          console.warn('Cached faction diagnostics unavailable:', err);
+        }
+        try { loadVoteEventFlagsFromCache(); }
+        catch (err) {
+          voteEventFlags = null;
+          namedVoteIds = new Set();
+          amendmentVoteIds = new Set();
+          localStorage.removeItem(CK.voteFlags);
+          console.warn('Cached vote classification unavailable:', err);
+        }
       }
     }
 
@@ -2542,9 +2859,10 @@
       // CSV alone and must still render if faction_summary.json is unreachable.
       overlay.style.display = 'flex';
       overlay.classList.remove('hidden');
-      const [coreRes, factionRes, flagsRes] = await Promise.allSettled([
+      const [coreRes, factionRes, diagnosticsRes, flagsRes] = await Promise.allSettled([
         loadData(),
         loadFactionData(),
+        loadFactionDiagnostics(),
         loadVoteEventFlags(),
       ]);
       if (coreRes.status === 'rejected') {
@@ -2557,6 +2875,10 @@
       if (factionRes.status === 'rejected') {
         console.error('Faction data unavailable:', factionRes.reason);
         factionSummary = null;
+      }
+      if (diagnosticsRes.status === 'rejected') {
+        console.error('Faction diagnostics unavailable:', diagnosticsRes.reason);
+        factionDiagnostics = null;
       }
       if (flagsRes.status === 'rejected') {
         console.error('Vote classification unavailable:', flagsRes.reason);
@@ -2620,8 +2942,10 @@
       const filteredRows = filterByInit(rows);
       const metrics = getMetrics(filteredRows, dateFrom, dateTo);
       const capacity = getCapacityMetric(filteredRows, dateFrom, dateTo);
-      renderCards(metrics, capacity);
-      renderFactionHeatmap(dateFrom, dateTo); // uses factionSummary, no initiator data
+      const diagnostics = aggregateFactionDiagnostics(dateFrom, dateTo);
+      renderCards(capacity, diagnostics);
+      renderSecondaryMetrics(metrics);
+      renderDiagnostics(diagnostics, dateFrom, dateTo); // date filter only; intentionally all initiators
       const chartDates = getChartDates(filteredRows, dateFrom, dateTo);
       const isRange = dateFrom !== dateTo;
       const chartLabel = isRange
@@ -2632,15 +2956,12 @@
       renderPassRateChart(filteredRows, dateFrom, dateTo);
       renderInitiatorChart(filteredRows, agendaMap, dateFrom, dateTo);
       renderTable(filteredRows, agendaMap, dateFrom, dateTo);
-      // C1 and C3 are brush-controlled — not driven by date filter
+      // The legacy faction trend is brush-controlled — not driven by the date filter.
     }
-
-    // Pre-compute bill count per date for heatmap tooltips
-    rows.forEach(r => { _billCountByDate[r.date_agenda] = (_billCountByDate[r.date_agenda] || 0) + 1; });
 
     renderAll(initialFrom, initialTo);
     renderCapacityTrend(rows); // intentionally all-time and all initiators
-    initBrushCharts(rows); // one-time setup for C1 and C3
+    initBrushCharts(rows); // one-time setup for the collapsed legacy faction trend
 
     // Update cache age indicator
     const cm = cacheGet(CK.meta);
@@ -2660,23 +2981,7 @@
         _initSmooth = val;
         document.querySelectorAll('#initSmoothToggle .metric-btn').forEach(b =>
           b.classList.toggle('active', +b.dataset.smooth === _initSmooth));
-        renderInitiatorChart(rows, agendaMap, inputFrom.value, inputTo.value);
-      });
-    });
-
-    // Faction heatmap: active participation is the analytical default.
-    document.querySelectorAll('#heatmapMetricToggle .metric-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const metric = btn.dataset.heatmapMetric;
-        if (metric === _heatmapMetric) return;
-        _heatmapMetric = metric;
-        document.querySelectorAll('#heatmapMetricToggle .metric-btn').forEach(b => {
-          const selected = b.dataset.heatmapMetric === _heatmapMetric;
-          b.classList.toggle('active', selected);
-          b.setAttribute('aria-pressed', String(selected));
-        });
-        document.getElementById('heatmapStatus').textContent = '';
-        renderFactionHeatmap(inputFrom.value, inputTo.value);
+        renderInitiatorChart(filterByInit(rows), agendaMap, inputFrom.value, inputTo.value);
       });
     });
 
@@ -2771,25 +3076,26 @@
       const refreshBtn = document.querySelector('.refresh-btn');
       if (refreshBtn) refreshBtn.classList.add('spinning');
       const factionDateBefore = factionDatesAvailable().pop() || '';
+      const diagnosticsRevisionBefore = diagnosticsRevision(factionDiagnostics);
       const flagsRevisionBefore = voteFlagsRevision(voteEventFlags);
       // Optional summaries fail independently of the live voting data.
-      Promise.allSettled([loadData(), loadFactionData(), loadVoteEventFlags()])
-        .then(([coreRes, factionRes, flagsRes]) => {
+      Promise.allSettled([loadData(), loadFactionData(), loadFactionDiagnostics(), loadVoteEventFlags()])
+        .then(([coreRes, factionRes, diagnosticsRes, flagsRes]) => {
           if (refreshBtn) refreshBtn.classList.remove('spinning');
           if (factionRes.status === 'rejected') console.error('Faction refresh failed:', factionRes.reason);
+          if (diagnosticsRes.status === 'rejected') console.error('Faction diagnostics refresh failed:', diagnosticsRes.reason);
           if (flagsRes.status === 'rejected') console.error('Vote classification refresh failed:', flagsRes.reason);
           if (coreRes.status === 'rejected') console.error(coreRes.reason);
           const fresh = coreRes.status === 'fulfilled' ? coreRes.value : { rows, agendaMap };
           const coreChanged = fresh.rows.length !== rows.length ||
             fresh.rows[0]?.date_agenda !== rows[0]?.date_agenda;
           const factionChanged = (factionDatesAvailable().pop() || '') !== factionDateBefore;
+          const diagnosticsChanged = diagnosticsRevision(factionDiagnostics) !== diagnosticsRevisionBefore;
           const flagsChanged = voteFlagsRevision(voteEventFlags) !== flagsRevisionBefore;
           if (cacheAgeEl) cacheAgeEl.textContent = '· оновлено';
-          if (coreChanged || factionChanged || flagsChanged) {
+          if (coreChanged || factionChanged || diagnosticsChanged || flagsChanged) {
             rows = fresh.rows;
             agendaMap = fresh.agendaMap;
-            _billCountByDate = {};
-            rows.forEach(r => { _billCountByDate[r.date_agenda] = (_billCountByDate[r.date_agenda] || 0) + 1; });
             renderAll(inputFrom.value, inputTo.value);
             renderCapacityTrend(rows);
             if (coreChanged || factionChanged) initBrushCharts(rows);
@@ -2817,6 +3123,14 @@
     if (label) document.getElementById('heatmapStatus').textContent = label;
   });
 
+  document.getElementById('secondaryAnalysis').addEventListener('toggle', event => {
+    if (!event.currentTarget.open) return;
+    requestAnimationFrame(() => {
+      [forChartInstance, factionTrendInstance, factionTrendOverviewInstance,
+       passRateInstance, initiatorChartInstance].forEach(chart => chart && chart.resize());
+    });
+  });
+
   // ── Tab switching ──────────────────────────────────────────
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2830,9 +3144,9 @@
       history.replaceState(null, '', '?' + sp.toString());
       // Resize charts when returning to the overview tab
       if (btn.dataset.tab === 'charts') {
-        [capacityTrendInstance, forChartInstance, donutInstance,
-         factionTrendInstance, factionTrendOverviewInstance,
-         passRateInstance, coalitionInstance, coalitionOverviewInstance]
+        [capacityTrendInstance, factionHealthInstance, presenceGapInstance, partnerSupportInstance,
+         forChartInstance, factionTrendInstance, factionTrendOverviewInstance,
+         passRateInstance, initiatorChartInstance]
           .forEach(c => c && c.resize());
       }
     });
@@ -2841,6 +3155,7 @@
   function retryInit() {
     _bustCache = true;
     factionSummary = null;
+    factionDiagnostics = null;
     cacheClear();
     history.replaceState(null, '', location.pathname);
     init().finally(() => { _bustCache = false; });
