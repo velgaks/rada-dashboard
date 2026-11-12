@@ -26,7 +26,7 @@ A single-file (`index.html`) **Modern Newsroom**-styled dashboard for the Ukrain
 | `tests/test_build_faction_diagnostics.py` | Classifier, formula, aggregation, invariant, and deterministic-output tests for faction health metrics. |
 | `plenary_vote_results-skl9.tsv` | Raw ~70 MB individual deputy votes. **Never serve to browser.** Pre-process only. In `.gitignore`. |
 | `plenary_result_event-skl9.csv` | Already fetched live from API (not served locally). In `.gitignore`. |
-| `.github/workflows/update-faction-data.yml` | GitHub Actions — tests builders and auto-updates faction, diagnostics, and event-classification data daily at 14:00 Kyiv time |
+| `.github/workflows/update-faction-data.yml` | Manual GitHub Actions refresh. The daily update uses the local Windows scheduler. |
 | `CLAUDE_MEMORY.md` | This file |
 | `CLAUDE_ERRORS.md` | Error log — problems encountered and solutions |
 | `NEXT_IMPROVEMENTS.md` | Prioritized feature backlog |
@@ -141,7 +141,8 @@ secondary output/agenda section. The old raw coalition stacked area is removed.
 - **Live URL:** https://velgaks.github.io/rada-dashboard/
 - **Branch:** `main`, root `/`
 - Git user: `ValHat` / `61630702+velgaks@users.noreply.github.com`
-- **CI:** GitHub Actions tests the builders, then runs `build_faction_summary.py` and `build_vote_event_flags.py` daily at 14:00 Kyiv (11:00 UTC), auto-committing changed summaries. Also supports manual trigger via `workflow_dispatch`.
+- **Daily data update:** Windows Task Scheduler task `Rada Dashboard Data Refresh` runs at 11:00 UTC while the Windows user is signed in and online. `scripts/refresh_faction_data.py` clones `main` into a temporary directory, runs the three builders and tests, and pushes only changed artifacts. The latest log is at `%LOCALAPPDATA%/RadaDashboard/FactionDataUpdater/latest-run.log`.
+- **GitHub Actions:** The data workflow remains available for manual dispatch. Hosted runners timed out connecting to the official Rada portal in November 2026.
 
 ```bash
 cd "D:/work/sociological center/VR dashboard"

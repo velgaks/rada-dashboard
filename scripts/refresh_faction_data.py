@@ -24,7 +24,12 @@ BUILDERS = (
 
 
 def refresh(options, log):
-    environment = dict(os.environ, GIT_TERMINAL_PROMPT="0", GCM_INTERACTIVE="Never")
+    environment = dict(
+        os.environ,
+        GIT_TERMINAL_PROMPT="0",
+        GCM_INTERACTIVE="Never",
+        PYTHONIOENCODING="utf-8",
+    )
 
     with tempfile.TemporaryDirectory(prefix="checkout-", dir=options.state_dir) as checkout:
         def run(*command, timeout=900, check=True):

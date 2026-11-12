@@ -1,10 +1,9 @@
 name: Update faction data
 
 on:
-  schedule:
-    # Every day at 11:00 UTC (14:00 Kyiv time)
-    - cron: '0 11 * * *'
-  workflow_dispatch: # Allow manual trigger
+  # The daily refresh runs via scripts/refresh_faction_data.py on a Windows host
+  # that can reach the official Rada portal. Hosted runners timed out on all sources.
+  workflow_dispatch:
 
 permissions:
   contents: write
