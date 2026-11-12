@@ -25,12 +25,13 @@ Results column format: deputy_id:faction_id:vote_code|...
 
 import json
 import os
-import subprocess
-import sys
 from collections import defaultdict
+from pathlib import Path
+
+from build_vote_event_flags import curl_download, curl_head
 
 TSV_URL   = "https://data.rada.gov.ua/ogd/zal/ppz/skl9/plenary_vote_results-skl9.tsv"
-TSV_PATH  = "plenary_vote_results-skl9.tsv"
+TSV_PATH  = Path("plenary_vote_results-skl9.tsv")
 OUT_PATH  = "faction_summary.json"
 META_PATH = "faction_summary.meta.json"
 
@@ -47,37 +48,6 @@ def load_meta():
 def save_meta(last_modified):
     with open(META_PATH, "w", encoding="utf-8") as f:
         json.dump({"last_modified": last_modified}, f)
-
-
-def curl_head(url):
-    """HEAD request via curl. Returns dict of headers."""
-    r = subprocess.run(
-        ["curl", "-sS", "-I", "--connect-timeout", "15", "--max-time", "30",
-         "--retry", "3", "--retry-delay", "10", "--retry-max-time", "90", url],
-        capture_output=True, text=True, timeout=120,
-    )
-    if r.returncode != 0:
-        print(f"curl HEAD failed (exit {r.returncode}): {r.stderr.strip()}", flush=True)
-        sys.exit(1)
-    headers = {}
-    for line in r.stdout.splitlines():
-        if ":" in line:
-            k, v = line.split(":", 1)
-            headers[k.strip().lower()] = v.strip()
-    return headers
-
-
-def curl_download(url, dest):
-    """Download file via curl with progress, retries, and resume."""
-    r = subprocess.run(
-        ["curl", "-sS", "-o", dest, "--connect-timeout", "30", "--max-time", "600",
-         "--retry", "5", "--retry-delay", "10", "--retry-max-time", "300",
-         "-C", "-", url],
-        capture_output=True, text=True, timeout=660,
-    )
-    if r.returncode != 0:
-        print(f"curl download failed (exit {r.returncode}): {r.stderr.strip()}", flush=True)
-        sys.exit(1)
 
 
 def parse_rows(text):
@@ -122,7 +92,7 @@ def main():
         print(f"Skip — file unchanged ({server_modified})")
         return
 
-    # Step 2: Full download via curl (robust retries, resume support)
+    # Step 2: Download the full current snapshot.
     print(f"Downloading {server_size / 1024 / 1024:.1f} MB...", flush=True)
     curl_download(TSV_URL, TSV_PATH)
     actual_size = os.path.getsize(TSV_PATH)
@@ -136,6 +106,8 @@ def main():
     # Convert defaultdicts to plain dicts for JSON serialization
     plain = {date: {fid: dict(votes) for fid, votes in factions.items()} for date, factions in summary.items()}
     output = {date: factions for date, factions in sorted(plain.items())}
+    if not output:
+        raise ValueError("The official TSV contained no faction votes")
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, separators=(",", ":"))
 
