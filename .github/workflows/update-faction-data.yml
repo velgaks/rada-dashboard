@@ -1,9 +1,12 @@
 name: Update faction data
 
 on:
-  # The daily refresh runs via scripts/refresh_faction_data.py on a Windows host
-  # that can reach the official Rada portal. Hosted runners timed out on all sources.
+  schedule:
+    - cron: '0 11 * * *'
   workflow_dispatch:
+
+concurrency:
+  group: update-faction-data-${{ github.ref }}
 
 permissions:
   contents: write
@@ -21,6 +24,45 @@ jobs:
       - name: Test data builders
         run: python -m unittest discover -s tests -v
 
+      - name: Open the restricted Rada source tunnel
+        shell: bash
+        env:
+          RADA_RELAY_HOST: ${{ vars.RADA_RELAY_HOST }}
+          RADA_RELAY_HOST_KEY: ${{ vars.RADA_RELAY_HOST_KEY }}
+          RADA_RELAY_SSH_KEY: ${{ secrets.RADA_RELAY_SSH_KEY }}
+        run: |
+          : "${RADA_RELAY_HOST:?Set the RADA_RELAY_HOST repository variable}"
+          : "${RADA_RELAY_HOST_KEY:?Set the RADA_RELAY_HOST_KEY repository variable}"
+          : "${RADA_RELAY_SSH_KEY:?Set the RADA_RELAY_SSH_KEY repository secret}"
+          if [[ ! "$RADA_RELAY_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]; then
+            echo "RADA_RELAY_HOST must be a DNS name or IPv4 address" >&2
+            exit 1
+          fi
+
+          umask 077
+          relay_dir=$(mktemp -d "$RUNNER_TEMP/rada-source.XXXXXX")
+          trap 'rm -f "$relay_dir/key"' EXIT
+          printf '%s\n' "$RADA_RELAY_SSH_KEY" | tr -d '\r' > "$relay_dir/key"
+          printf '%s\n' "$RADA_RELAY_HOST_KEY" > "$relay_dir/known_hosts"
+
+          ssh -F /dev/null -fNT \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o ExitOnForwardFailure=yes \
+            -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null \
+            -o "UserKnownHostsFile=$relay_dir/known_hosts" \
+            -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            -i "$relay_dir/key" \
+            -L 127.0.0.1:41843:data.rada.gov.ua:443 \
+            "rada-relay@$RADA_RELAY_HOST"
+
+          printf '%s\n' \
+            'connect-to = "data.rada.gov.ua:443:127.0.0.1:41843"' \
+            'noproxy = "data.rada.gov.ua"' > "$relay_dir/.curlrc"
+          export CURL_HOME="$relay_dir"
+          curl --head --fail --silent --show-error --connect-timeout 10 --max-time 30 \
+            --retry 2 --retry-all-errors \
+            https://data.rada.gov.ua/ogd/zal/mps/mps-trans_fr.csv
+          printf 'CURL_HOME=%s\n' "$relay_dir" >> "$GITHUB_ENV"
+
       - name: Update faction summary
         run: python build_faction_summary.py
         timeout-minutes: 15
@@ -37,6 +79,7 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_faction_diagnostics_artifact.py' -v
 
       - name: Commit and push if changed
+        if: github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
